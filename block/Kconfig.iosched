@@ -80,7 +80,6 @@ config BFQ_GROUP_IOSCHED
 	---help---
 	  Enable hierarchical scheduling in BFQ, using the blkio controller.
 
-
 choice
 	prompt "Default I/O scheduler"
 	default DEFAULT_CFQ
@@ -100,6 +99,15 @@ choice
 	config DEFAULT_NOOP
 		bool "No-op"
 
+	config DEFAULT_SIO
+		bool "SIO" if IOSCHED_SIO=y
+
+	config DEFAULT_FIOPS
+		bool "FIOPS" if IOSCHED_FIOPS=y
+
+	config DEFAULT_ZEN
+		bool "ZEN" if IOSCHED_ZEN=y
+
 endchoice
 
 config DEFAULT_IOSCHED
@@ -108,6 +116,9 @@ config DEFAULT_IOSCHED
 	default "cfq" if DEFAULT_CFQ
 	default "noop" if DEFAULT_NOOP
 	default "maple" if DEFAULT_MAPLE
+	default "fiops" if DEFAULT_FIOPS
+	default "sio" if DEFAULT_SIO
+	default "zen" if DEFAULT_ZEN
 
 endmenu
 
