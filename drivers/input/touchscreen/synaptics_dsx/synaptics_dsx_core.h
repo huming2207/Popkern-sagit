@@ -293,6 +293,7 @@ struct synaptics_rmi4_data {
 	bool sensor_sleep;
 	bool stay_awake;
 	bool staying_awake;
+	bool enable_reversed_keys;
 	bool fw_updating;
 	bool support_vkeys;
 	bool update_coords;
