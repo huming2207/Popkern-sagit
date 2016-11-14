@@ -399,15 +399,16 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
-		   -std=gnu89 \
 		   -mcpu=cortex-a73.cortex-a53 -mtune=cortex-a73.cortex-a53 \
 		   -Wno-memset-transposed-args -Wno-bool-compare -Wno-logical-not-parentheses -Wno-discarded-array-qualifiers \
 		   -Wno-unused-const-variable -Wno-array-bounds -Wno-incompatible-pointer-types -Wno-misleading-indentation -Wno-tautological-compare -Wno-error=misleading-indentation \
-		   -Wno-format-truncation -Wno-duplicate-decl-specifier -Wno-memset-elt-size -Wno-bool-operation -Wno-int-in-bool-context -Wno-parentheses -Wno-switch-unreachable -Wno-stringop-overflow -Wno-format-overflow -fno-store-merging
+		   -Wno-format-truncation -Wno-duplicate-decl-specifier -Wno-memset-elt-size -Wno-bool-operation -Wno-int-in-bool-context -Wno-parentheses -Wno-switch-unreachable -Wno-stringop-overflow -Wno-format-overflow -fno-store-merging \
+		   -std=gnu89 $(call cc-option,-fno-PIE)
+
 
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
-KBUILD_AFLAGS   := -D__ASSEMBLY__
+KBUILD_AFLAGS   := -D__ASSEMBLY__ $(call cc-option,-fno-PIE)
 KBUILD_AFLAGS_MODULE  := -DMODULE
 KBUILD_CFLAGS_MODULE  := -DMODULE
 KBUILD_LDFLAGS_MODULE := -T $(srctree)/scripts/module-common.lds
@@ -631,8 +632,6 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, format-overflow)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, int-in-bool-context)
 KBUILD_CFLAGS	+= $(call cc-disable-warning,maybe-uninitialized,)
 KBUILD_CFLAGS	+= $(call cc-disable-warning,frame-address,)
-KBUILD_CFLAGS	+= $(call cc-option,-fno-PIE)
-KBUILD_AFLAGS	+= $(call cc-option,-fno-PIE)
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os
