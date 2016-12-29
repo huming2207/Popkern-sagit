@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/mdss_io_util.h>
+#include <linux/display_state.h>
 
 #include "mdss_dsi.h"
 #include "mdss_dba_utils.h"
@@ -70,6 +71,12 @@ void mdss_dsi_ulps_suspend_enable(bool enable)
 {
 	if (mdss_pinfo)
 		mdss_pinfo->ulps_suspend_enabled = enable;
+}
+
+bool display_on = true;
+bool is_display_on()
+{
+	return display_on;
 }
 
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
@@ -1377,6 +1384,8 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 		return -EINVAL;
 	}
 
+	display_on = true;
+
 	pinfo = &pdata->panel_info;
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
@@ -1486,6 +1495,8 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 		mdss_dba_utils_video_off(pinfo->dba_data);
 		mdss_dba_utils_hdcp_enable(pinfo->dba_data, false);
 	}
+
+	display_on = false;
 
 end:
 	pr_info("%s:-\n", __func__);
