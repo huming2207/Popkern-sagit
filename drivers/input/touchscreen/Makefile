@@ -104,3 +104,5 @@ obj-$(CONFIG_TOUCHSCREEN_ST_FTS) += fts/
 obj-$(CONFIG_TOUCHSCREEN_FT5X46)	+= ft5x46/
 obj-$(CONFIG_TOUCHSCREEN_ST)		+= st/
 obj-$(CONFIG_SWEEP2SLEEP)		+= sweep2sleep.o
+
+include drivers/input/touchscreen/touchopt.mk
