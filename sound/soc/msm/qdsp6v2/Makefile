@@ -22,3 +22,5 @@ ocmem-audio-objs += audio_ocmem.o
 obj-$(CONFIG_AUDIO_OCMEM) += ocmem-audio.o
 
 EXTRA_CFLAGS += -I$(srctree)
+
+include sound/soundopt.mk
