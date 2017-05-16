@@ -3,7 +3,6 @@ ccflags-y ?=
 ccflags-y += -O1 -fthread-jumps \
           -falign-functions -falign-jumps \
           -falign-loops -falign-labels \
-          -fcrossjumping \
           -fcse-follow-jumps -fcse-skip-blocks \
           -fexpensive-optimizations \
           -fgcse -fgcse-lm \
@@ -21,4 +20,5 @@ ccflags-y += -O1 -fthread-jumps \
           -ftree-switch-conversion -ftree-tail-merge \
           -ftree-pre \
           -ftree-vrp \
-          -mtune=cortex-a57.cortex-a53
+          -mtune=cortex-a57.cortex-a53 \
+          -march=armv8-a+simd
