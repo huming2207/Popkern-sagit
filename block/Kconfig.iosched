@@ -2,6 +2,12 @@ if BLOCK
 
 menu "IO Schedulers"
 
+config IOSCHED_TRIPNDROID
+	tristate "Tripndroid"
+	default y
+	---help---
+	  The Trip N Droid scheduler
+
 config IOSCHED_NOOP
 	bool
 	default y
@@ -85,6 +91,9 @@ choice
 	help
 	  Select the I/O scheduler which will be used by default for all
 	  block devices.
+	  
+	config DEFAULT_TRIPNDROID
+		bool "TRIPNDROID" if IOSCHED_TRIPNDROID=y
 
 	config DEFAULT_DEADLINE
 		bool "Deadline" if IOSCHED_DEADLINE=y
@@ -118,6 +127,7 @@ config DEFAULT_IOSCHED
 	default "sio" if DEFAULT_SIO
 	default "zen" if DEFAULT_ZEN
 	default "maple" if DEFAULT_MAPLE
+	default "tripndroid" if DEFAULT_TRIPNDROID
 
 endmenu
 
