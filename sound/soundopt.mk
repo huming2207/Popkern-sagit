@@ -16,7 +16,6 @@ ccflags-y += -O1 -fthread-jumps \
           -foptimize-strlen \
           -fpeephole2 \
           -frerun-cse-after-loop \
-          -fstrict-aliasing \
           -ftree-switch-conversion -ftree-tail-merge \
           -ftree-pre \
           -ftree-vrp \
