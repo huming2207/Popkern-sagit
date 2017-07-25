@@ -12,4 +12,4 @@ ccflags-y += -O3 \
     -fno-reciprocal-math \
     -ffinite-math-only \
     -mtune=cortex-a73 \
-    -mcpu=cortex-a73{fp+simd}
+    -mcpu=cortex-a73
