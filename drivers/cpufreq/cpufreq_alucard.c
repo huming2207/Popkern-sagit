@@ -1659,6 +1659,8 @@ static struct cpufreq_alucard_tunables *alloc_tunable(
 	tunables->pump_dec_step_at_min_freq = PUMP_DEC_STEP_AT_MIN_FREQ;
 	tunables->timer_rate = DEFAULT_TIMER_RATE;
 	tunables->timer_slack_val = DEFAULT_TIMER_SLACK;
+	tunables->use_sched_load = true;
+	tunables->use_migration_notif = true;
 
 	spin_lock_init(&tunables->target_loads_lock);
 	spin_lock_init(&tunables->target_sampling_time_lock);
