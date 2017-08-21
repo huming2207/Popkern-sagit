@@ -315,7 +315,8 @@ static unsigned int big_down_target_sampling_time[BIG_NFREQS] = {
 
 #define FREQ_RESPONSIVENESS_LITTLE	1324800
 #define FREQ_RESPONSIVENESS_BIG		1344000
-#define LOAD_RESPONSIVENESS			90
+#define LOAD_RESPONSIVENESS_LITTLE	100
+#define LOAD_RESPONSIVENESS_BIG		99
 #define PUMP_INC_STEP_AT_MIN_FREQ	3
 #define PUMP_INC_STEP			2
 #define PUMP_DEC_STEP_AT_MIN_FREQ	3
@@ -1642,6 +1643,7 @@ static struct cpufreq_alucard_tunables *alloc_tunable(
 		tunables->up_target_sampling_time = little_up_target_sampling_time;
 		tunables->down_target_sampling_time = little_down_target_sampling_time;
 		tunables->ntarget_sampling_time = LITTLE_NFREQS;
+		tunables->load_responsiveness = LOAD_RESPONSIVENESS_LITTLE;
 	} else {
 		tunables->freq_responsiveness = FREQ_RESPONSIVENESS_BIG;
 		tunables->up_target_loads = big_up_target_loads;
@@ -1650,9 +1652,9 @@ static struct cpufreq_alucard_tunables *alloc_tunable(
 		tunables->up_target_sampling_time = big_up_target_sampling_time;
 		tunables->down_target_sampling_time = big_down_target_sampling_time;
 		tunables->ntarget_sampling_time = BIG_NFREQS;
+		tunables->load_responsiveness = LOAD_RESPONSIVENESS_BIG;
 	}
-	tunables->freq_responsiveness_jump = 1;
-	tunables->load_responsiveness = LOAD_RESPONSIVENESS;
+	tunables->freq_responsiveness_jump = true;
 	tunables->pump_inc_step_at_min_freq = PUMP_INC_STEP_AT_MIN_FREQ;
 	tunables->pump_inc_step = PUMP_INC_STEP;
 	tunables->pump_dec_step = PUMP_DEC_STEP;
