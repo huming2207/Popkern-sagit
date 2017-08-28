@@ -208,9 +208,9 @@ static unsigned int little_up_target_sampling_time[LITTLE_NFREQS] = {
 	1,
 	1,
 	1,
-	1,
-	1,
-	1,
+	2,
+	2,
+	2,
 	2,
 	2,
 	2,
@@ -262,13 +262,13 @@ static unsigned int big_up_target_sampling_time[BIG_NFREQS] = {
 	1,
 	1,
 	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
-	1,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
 	2,
 	2,
 	2,
@@ -748,15 +748,12 @@ static void cpufreq_alucard_timer(unsigned long data)
 					continue;
 
 				new_freq = ppol->freq_table[i].frequency;
-				pump_inc_step--;
-				if (!pump_inc_step)
+				if (--pump_inc_step == 0)
 					break;
 			}
-		} else if (ppol->up_sampling_time < up_target_sampling_time) {
-			ppol->up_sampling_time++;
-		} else {
-			ppol->up_sampling_time = 1;
 		}
+		if (++ppol->up_sampling_time > up_target_sampling_time)
+			ppol->up_sampling_time = 1;
 	} else if (pol_load < tunables->down_target_loads[index]
 				&& ppol->policy->cur > ppol->policy->min) {
 		if (ppol->down_sampling_time == down_target_sampling_time) {
@@ -765,15 +762,12 @@ static void cpufreq_alucard_timer(unsigned long data)
 					continue;
 
 				new_freq = ppol->freq_table[i].frequency;
-				pump_dec_step--;
-				if (!pump_dec_step)
+				if (--pump_dec_step == 0)
 					break;
 			}
-		} else if (ppol->down_sampling_time < down_target_sampling_time) {
-			ppol->down_sampling_time++;
-		} else {
-			ppol->down_sampling_time = 1;
 		}
+		if (++ppol->down_sampling_time > down_target_sampling_time)
+			ppol->down_sampling_time = 1;
 	}
 	spin_unlock_irqrestore(&tunables->target_loads_lock, flags2);
 	if (!new_freq) {
@@ -1118,6 +1112,7 @@ static ssize_t store_up_target_sampling_time(
 	int i;
 	int ntokens = 1;
 	unsigned long flags;
+	unsigned int value = 0;
 
 	if (!tunables->up_target_sampling_time)
 		return -EINVAL;
@@ -1132,10 +1127,14 @@ static ssize_t store_up_target_sampling_time(
 	cp = buf;
 	spin_lock_irqsave(&tunables->target_sampling_time_lock, flags);
 	for (i = 0; i < ntokens; i++) {
-		if (sscanf(cp, "%u", &tunables->up_target_sampling_time[i]) != 1) {
+		if (sscanf(cp, "%u", &value) != 1) {
 			spin_unlock_irqrestore(&tunables->target_sampling_time_lock, flags);
 			return -EINVAL;
 		} else {
+			if (!value
+				&& i < (ntokens - 1))
+				value = 1;
+			tunables->up_target_sampling_time[i] = value;
 			pr_debug("index[%d], val[%u]\n", i, tunables->up_target_sampling_time[i]);
 		}
 
@@ -1180,6 +1179,7 @@ static ssize_t store_down_target_sampling_time(
 	int i;
 	int ntokens = 1;
 	unsigned long flags;
+	unsigned int value = 0;
 
 	if (!tunables->down_target_sampling_time)
 		return -EINVAL;
@@ -1194,10 +1194,14 @@ static ssize_t store_down_target_sampling_time(
 	cp = buf;
 	spin_lock_irqsave(&tunables->target_sampling_time_lock, flags);
 	for (i = 0; i < ntokens; i++) {
-		if (sscanf(cp, "%u", &tunables->down_target_sampling_time[i]) != 1) {
+		if (sscanf(cp, "%u", &value) != 1) {
 			spin_unlock_irqrestore(&tunables->target_sampling_time_lock, flags);
 			return -EINVAL;
 		} else {
+			if (!value
+				&& i > 0)
+				value = 1;
+			tunables->down_target_sampling_time[i] = value;
 			pr_debug("index[%d], val[%u]\n", i, tunables->down_target_sampling_time[i]);
 		}
 
@@ -1242,6 +1246,7 @@ static ssize_t store_up_target_pump_step(
 	int i;
 	int ntokens = 1;
 	unsigned long flags;
+	unsigned int value = 0;
 
 	if (!tunables->up_target_pump_step)
 		return -EINVAL;
@@ -1256,10 +1261,14 @@ static ssize_t store_up_target_pump_step(
 	cp = buf;
 	spin_lock_irqsave(&tunables->target_pump_step_lock, flags);
 	for (i = 0; i < ntokens; i++) {
-		if (sscanf(cp, "%u", &tunables->up_target_pump_step[i]) != 1) {
+		if (sscanf(cp, "%u", &value) != 1) {
 			spin_unlock_irqrestore(&tunables->target_pump_step_lock, flags);
 			return -EINVAL;
 		} else {
+			if (!value
+				&& i < (ntokens - 1))
+				value = 1;
+			tunables->up_target_pump_step[i] = value;
 			pr_debug("index[%d], val[%u]\n", i, tunables->up_target_pump_step[i]);
 		}
 
@@ -1304,6 +1313,7 @@ static ssize_t store_down_target_pump_step(
 	int i;
 	int ntokens = 1;
 	unsigned long flags;
+	unsigned int value = 0;
 
 	if (!tunables->down_target_pump_step)
 		return -EINVAL;
@@ -1318,10 +1328,14 @@ static ssize_t store_down_target_pump_step(
 	cp = buf;
 	spin_lock_irqsave(&tunables->target_pump_step_lock, flags);
 	for (i = 0; i < ntokens; i++) {
-		if (sscanf(cp, "%u", &tunables->down_target_pump_step[i]) != 1) {
+		if (sscanf(cp, "%u", &value) != 1) {
 			spin_unlock_irqrestore(&tunables->target_pump_step_lock, flags);
 			return -EINVAL;
 		} else {
+			if (!value
+				&& i > 0)
+				value = 1;
+			tunables->down_target_pump_step[i] = value;
 			pr_debug("index[%d], val[%u]\n", i, tunables->down_target_pump_step[i]);
 		}
 
@@ -2060,5 +2074,5 @@ static void __exit cpufreq_alucard_exit(void)
 module_exit(cpufreq_alucard_exit);
 
 MODULE_AUTHOR("Alucard24 <dmbaoh2@gmail.com>");
-MODULE_DESCRIPTION("'cpufreq_alucard' - A dynamic cpufreq governor v6.0");
+MODULE_DESCRIPTION("'cpufreq_alucard' - A dynamic cpufreq governor v6.1");
 MODULE_LICENSE("GPLv2");
