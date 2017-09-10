@@ -36,13 +36,14 @@ struct cpufreq_alucard_policyinfo {
 	struct hrtimer notif_timer;
 	spinlock_t load_lock; /* protects load tracking stat */
 	u64 last_evaluated_jiffy;
+	unsigned int up_sampling_rate;
+	unsigned int down_sampling_rate;
 	struct cpufreq_policy *policy;
 	struct cpufreq_policy p_nolim; /* policy copy with no limits */
 	struct cpufreq_frequency_table *freq_table;
 	spinlock_t target_freq_lock; /*protects target freq */
 	unsigned int target_freq;
 	unsigned int min_freq;
-	u64 last_freq_update_time;
 	struct rw_semaphore enable_sem;
 	bool reject_notification;
 	bool notif_pending;
@@ -88,21 +89,21 @@ static unsigned int little_up_target_loads[LITTLE_NFREQS] = {
 	70,
 	70,
 	70,
-	45,
-	45,
-	50,
-	50,
-	50,
-	60,
-	60,
-	60,
 	70,
 	70,
 	70,
-	85,
-	85,
-	85,
-	85,
+	70,
+	70,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	95,
+	95,
 	0
 };
 
@@ -113,208 +114,208 @@ static unsigned int little_down_target_loads[LITTLE_NFREQS] = {
 	70,
 	70,
 	70,
-	45,
-	45,
-	50,
-	50,
-	50,
-	60,
-	60,
-	60,
 	70,
 	70,
 	70,
-	85,
-	85,
-	85,
-	85,
-	85
+	70,
+	70,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	95,
+	95
 };
 
 static unsigned int big_up_target_loads[BIG_NFREQS] = {
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	80,
-	80,
-	80,
-	80,
-	80,
+	70,
+	70,
+	70,
+	70,
+	70,
+	70,
+	70,
+	70,
+	70,
+	70,
+	70,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
 	90,
-	90,
-	90,
-	90,
+	95,
+	95,
+	95,
+	95,
+	95,
+	95,
+	95,
 	95,
 	0
 };
 
 static unsigned int big_down_target_loads[BIG_NFREQS] = {
 	0,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	85,
-	80,
-	80,
-	80,
-	80,
-	80,
+	70,
+	70,
+	70,
+	70,
+	70,
+	70,
+	70,
+	70,
+	70,
+	70,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
+	83,
 	90,
-	90,
-	90,
-	90,
+	95,
+	95,
+	95,
+	95,
+	95,
+	95,
 	95,
 	95
 };
 
-static unsigned int little_up_target_frequency_delay[LITTLE_NFREQS] = {
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	19000,
-	19000,
-	19000,
-	19000,
-	19000,
-	19000,
-	19000,
+static unsigned int little_up_target_sampling_rate[LITTLE_NFREQS] = {
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
 	0
 };
 
-static unsigned int little_down_target_frequency_delay[LITTLE_NFREQS] = {
+static unsigned int little_down_target_sampling_rate[LITTLE_NFREQS] = {
 	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1
+};
+
+static unsigned int big_up_target_sampling_rate[BIG_NFREQS] = {
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
+	2,
 	0
 };
 
-static unsigned int big_up_target_frequency_delay[BIG_NFREQS] = {
+static unsigned int big_down_target_sampling_rate[BIG_NFREQS] = {
 	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	19000,
-	19000,
-	19000,
-	19000,
-	19000,
-	19000,
-	19000,
-	19000,
-	19000,
-	19000,
-	19000,
-	19000,
-	0
-};
-
-static unsigned int big_down_target_frequency_delay[BIG_NFREQS] = {
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1
 };
 
 static unsigned int little_up_target_pump_step[LITTLE_NFREQS] = {
@@ -437,11 +438,10 @@ static unsigned int big_down_target_pump_step[BIG_NFREQS] = {
 
 #define DEFAULT_TIMER_RATE (20 * USEC_PER_MSEC)
 
-#define FREQ_RESPONSIVENESS_LITTLE	1171200
-#define FREQ_RESPONSIVENESS_BIG		729600
-#define LOAD_RESPONSIVENESS_LITTLE	100
-#define LOAD_RESPONSIVENESS_BIG		99
-
+#define FREQ_RESPONSIVENESS_LITTLE	1036800
+#define FREQ_RESPONSIVENESS_BIG		1056000
+#define LOAD_RESPONSIVENESS_LITTLE	35
+#define LOAD_RESPONSIVENESS_BIG		40
 struct cpufreq_alucard_tunables {
 	int usage_count;
 	/*
@@ -467,10 +467,10 @@ struct cpufreq_alucard_tunables {
 	 * Wait this long before raising speed above the current cpu frequency, by default a
 	 * single timer interval.
 	 */
-	spinlock_t target_frequency_delay_lock;
-	unsigned int *up_target_frequency_delay;
-	unsigned int *down_target_frequency_delay;
-	int ntarget_frequency_delay;
+	spinlock_t target_sampling_rate_lock;
+	unsigned int *up_target_sampling_rate;
+	unsigned int *down_target_sampling_rate;
+	int ntarget_sampling_rate;
 	/*
 	 * Max additional time to wait in idle, beyond timer_rate, at speeds
 	 * above minimum before wakeup to reduce speed, or -1 if unnecessary.
@@ -491,6 +491,9 @@ struct cpufreq_alucard_tunables {
 	 */
 	bool align_windows;
 #endif
+
+	/* Ignore load_responsiveness and target frequency delay for notification */
+	bool ignore_responsiveness_on_notif;
 
 	/* Whether to enable prediction or not */
 	bool enable_prediction;
@@ -657,38 +660,37 @@ static unsigned int sl_busy_to_laf(struct cpufreq_alucard_policyinfo *ppol,
 		ppol->policy->governor_data;
 
 	prev_load = mult_frac(ppol->policy->cpuinfo.max_freq * 100,
-				busy, tunables->timer_rate);
+				busy, tunables->timer_rate - 1);
 	return prev_load;
 }
 
 static void cpufreq_alucard_timer(unsigned long data)
 {
-	s64 now;
-	unsigned int delta_time;
 #ifdef USE_NOT_ONLY_SCHED_LOAD
+	u64 now;
 	u64 cputime_speedadj;
 #endif
 	int cpu_load;
-	int pol_load = 0;
+	int pol_load = 0, norm_load = 0;
 	struct cpufreq_alucard_policyinfo *ppol = per_cpu(polinfo, data);
 	struct cpufreq_alucard_tunables *tunables =
 		ppol->policy->governor_data;
 	struct sched_load *sl = ppol->sl;
 	struct cpufreq_alucard_cpuinfo *pcpu;
 	unsigned int new_freq = 0;
-	unsigned int prev_laf = 0, t_prevlaf;
-	unsigned int pred_laf = 0, t_predlaf = 0;
+	unsigned int t_prevlaf;
+	unsigned int t_predlaf = 0;
 	unsigned int index;
 	unsigned long flags;
 	unsigned long flags2;
 	unsigned long max_cpu;
 	int pump_inc_step;
 	int pump_dec_step;
-	unsigned int up_target_frequency_delay;
-	unsigned int down_target_frequency_delay;
+	unsigned int up_target_sampling_rate;
+	unsigned int down_target_sampling_rate;
 	int cpu, i;
-	int new_load_pct = 0;
 	int prev_l, pred_l = 0;
+	bool skip_responsiveness_logic;
 #if defined(CONFIG_MSM_PERFORMANCE) || defined(CONFIG_SCHED_CORE_CTL)
 	struct cpufreq_govinfo govinfo;
 #endif
@@ -698,11 +700,11 @@ static void cpufreq_alucard_timer(unsigned long data)
 	if (!ppol->governor_enabled)
 		goto exit;
 
-	now = ktime_to_us(ktime_get());
-
 	spin_lock_irqsave(&ppol->target_freq_lock, flags);
 	spin_lock(&ppol->load_lock);
 
+	skip_responsiveness_logic =
+		tunables->ignore_responsiveness_on_notif && ppol->notif_pending;
 	ppol->notif_pending = false;
 	ppol->last_evaluated_jiffy = get_jiffies_64();
 
@@ -717,18 +719,13 @@ static void cpufreq_alucard_timer(unsigned long data)
 #ifdef USE_NOT_ONLY_SCHED_LOAD
 		if (tunables->use_sched_load) {
 #endif
-			t_prevlaf = sl_busy_to_laf(ppol, sl[i].prev_load);
+			t_prevlaf = sl_busy_to_laf(ppol, (sl[i].prev_load + sl[i].new_task_load));
 			prev_l = t_prevlaf / ppol->target_freq;
 			if (tunables->enable_prediction) {
 				t_predlaf = sl_busy_to_laf(ppol,
-						sl[i].predicted_load);
+						(sl[i].predicted_load + sl[i].new_task_load));
 				pred_l = t_predlaf / ppol->target_freq;
 			}
-			if (sl[i].prev_load)
-				new_load_pct = sl[i].new_task_load * 100 /
-							sl[i].prev_load;
-			else
-				new_load_pct = 0;
 #ifdef USE_NOT_ONLY_SCHED_LOAD
 		} else {
 			now = update_load(cpu);
@@ -742,82 +739,84 @@ static void cpufreq_alucard_timer(unsigned long data)
 			prev_l = t_prevlaf / ppol->target_freq;
 		}
 #endif
-
 		/* find max of load inside policy */
-		if (t_prevlaf > prev_laf) {
-			prev_laf = t_prevlaf;
+		cpu_load = max(prev_l, pred_l);
+		if (cpu_load > pol_load) {
+			pol_load = cpu_load;
 			max_cpu = cpu;
 		}
-		pred_laf = max(t_predlaf, pred_laf);
-
-		cpu_load = max(prev_l, pred_l);
-		pol_load = max(pol_load, cpu_load);
-
 		/* save load for notification */
-		pcpu->load = pol_load;
+		pcpu->load = max(t_prevlaf, t_predlaf) / ppol->policy->max;
+
+		/* get responsiveness load */
+		if (pcpu->load > norm_load)
+			norm_load = pcpu->load;
 
 		i++;
 	}
 	spin_unlock(&ppol->load_lock);
 
-	new_freq = ppol->policy->cur;
 #ifdef CONFIG_MSM_TRACK_FREQ_TARGET_INDEX
 	index = ppol->policy->cur_index;
 #else
-	index = cpufreq_frequency_table_get_index(ppol->policy, new_freq);
+	index = cpufreq_frequency_table_get_index(&pcpu->p_nolim, ppol->policy->cur);
 	if (index < 0) {
 		spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
 		goto rearm;
 	}
 #endif
+	
 	spin_lock_irqsave(&tunables->target_pump_step_lock, flags2);
 	pump_inc_step = tunables->up_target_pump_step[index];
 	pump_dec_step = tunables->down_target_pump_step[index];
 	spin_unlock_irqrestore(&tunables->target_pump_step_lock, flags2);
 
+	spin_lock_irqsave(&tunables->target_sampling_rate_lock, flags2);
+	up_target_sampling_rate = tunables->up_target_sampling_rate[index];
+	down_target_sampling_rate = tunables->down_target_sampling_rate[index];
+	spin_unlock_irqrestore(&tunables->target_sampling_rate_lock, flags2);
+
 	spin_lock_irqsave(&tunables->target_loads_lock, flags2);
 	if (pol_load >= tunables->up_target_loads[index]
-		 && new_freq < ppol->policy->max) {
-		for (i = index + 1; i < tunables->ntarget_loads; i++) {
-			if (ppol->freq_table[i].frequency == CPUFREQ_ENTRY_INVALID)
-				continue;
+		 && ppol->policy->cur < ppol->p_nolim.max) {
+		if (ppol->up_sampling_rate == up_target_sampling_rate) {
+			for (i = index + 1; i < tunables->ntarget_loads; i++) {
+				if (ppol->freq_table[i].frequency == CPUFREQ_ENTRY_INVALID)
+					continue;
 
-			new_freq = ppol->freq_table[i].frequency;
-			if (!--pump_inc_step)
-				break;
-		}
+				new_freq = ppol->freq_table[i].frequency;
+				if (!--pump_inc_step)
+					break;
+			}
+		} 
+		if (++ppol->up_sampling_rate > up_target_sampling_rate)
+			ppol->up_sampling_rate = 1;
 	} else if (pol_load < tunables->down_target_loads[index]
-				&& new_freq > ppol->policy->min) {
-		for (i = index - 1; i >= 0; i--) {
-			if (ppol->freq_table[i].frequency == CPUFREQ_ENTRY_INVALID)
-				continue;
+				&& ppol->policy->cur > ppol->p_nolim.min) {
+		if (ppol->down_sampling_rate == down_target_sampling_rate) {
+			for (i = index - 1; i >= 0; i--) {
+				if (ppol->freq_table[i].frequency == CPUFREQ_ENTRY_INVALID)
+					continue;
 
-			new_freq = ppol->freq_table[i].frequency;
-			if (!--pump_dec_step)
-				break;
+				new_freq = ppol->freq_table[i].frequency;
+				if (!--pump_dec_step)
+					break;
+			}
 		}
+		if (++ppol->down_sampling_rate > down_target_sampling_rate)
+			ppol->down_sampling_rate = 1;
 	}
 	spin_unlock_irqrestore(&tunables->target_loads_lock, flags2);
-	if (pol_load >= tunables->load_responsiveness &&
-		new_freq < tunables->freq_responsiveness)
-		new_freq = tunables->freq_responsiveness;
-
-	spin_lock_irqsave(&tunables->target_frequency_delay_lock, flags2);
-	up_target_frequency_delay = tunables->up_target_frequency_delay[index];
-	down_target_frequency_delay = tunables->down_target_frequency_delay[index];
-	spin_unlock_irqrestore(&tunables->target_frequency_delay_lock, flags2);
-
-	delta_time = (unsigned int)
-		(now - ppol->last_freq_update_time);
-	if ((new_freq > ppol->target_freq
-			&& delta_time < up_target_frequency_delay)
-		|| (new_freq < ppol->target_freq
-			&& delta_time <	down_target_frequency_delay)) {
+	if (!new_freq) {
 		spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
 		goto rearm;
 	}
 
-	ppol->last_freq_update_time = now;
+	if (norm_load >= tunables->load_responsiveness
+		&& new_freq < tunables->freq_responsiveness
+		&& !skip_responsiveness_logic)
+		new_freq = tunables->freq_responsiveness;
+
 	ppol->target_freq = new_freq;
 	spin_unlock_irqrestore(&ppol->target_freq_lock, flags);
 	spin_lock_irqsave(&speedchange_cpumask_lock, flags);
@@ -892,6 +891,8 @@ static int cpufreq_alucard_speedchange_task(void *data)
 				__cpufreq_driver_target(ppol->policy,
 							ppol->target_freq,
 							CPUFREQ_RELATION_H);
+				ppol->up_sampling_rate = 1;
+				ppol->down_sampling_rate = 1;
 			}
 			up_read(&ppol->enable_sem);
 		}
@@ -1129,8 +1130,8 @@ static ssize_t store_down_target_loads(
 	return count;
 }
 
-/* up_target_frequency_delay */
-static ssize_t show_up_target_frequency_delay(
+/* up_target_sampling_rate */
+static ssize_t show_up_target_sampling_rate(
 	struct cpufreq_alucard_tunables *tunables,
 	char *buf)
 {
@@ -1138,21 +1139,21 @@ static ssize_t show_up_target_frequency_delay(
 	ssize_t ret = 0;
 	unsigned long flags;
 
-	if (!tunables->up_target_frequency_delay)
+	if (!tunables->up_target_sampling_rate)
 		return -EINVAL;
 
-	spin_lock_irqsave(&tunables->target_frequency_delay_lock, flags);
-	for (i = 0; i < tunables->ntarget_frequency_delay; i++)
-		ret += sprintf(buf + ret, "%u%s", tunables->up_target_frequency_delay[i],
+	spin_lock_irqsave(&tunables->target_sampling_rate_lock, flags);
+	for (i = 0; i < tunables->ntarget_sampling_rate; i++)
+		ret += sprintf(buf + ret, "%u%s", tunables->up_target_sampling_rate[i],
 			       ":");
-	spin_unlock_irqrestore(&tunables->target_frequency_delay_lock, flags);
+	spin_unlock_irqrestore(&tunables->target_sampling_rate_lock, flags);
 
 	sprintf(buf + ret - 1, "\n");
 
 	return ret;
 }
 
-static ssize_t store_up_target_frequency_delay(
+static ssize_t store_up_target_sampling_rate(
 	struct cpufreq_alucard_tunables *tunables,
 	const char *buf, size_t count)
 {
@@ -1160,25 +1161,29 @@ static ssize_t store_up_target_frequency_delay(
 	int i;
 	int ntokens = 1;
 	unsigned long flags;
+	unsigned int value = 0;
 
-	if (!tunables->up_target_frequency_delay)
+	if (!tunables->up_target_sampling_rate)
 		return -EINVAL;
 
 	cp = buf;
 	while ((cp = strpbrk(cp + 1, ":")))
 		ntokens++;
 
-	if (ntokens != tunables->ntarget_frequency_delay)
+	if (ntokens != tunables->ntarget_sampling_rate)
 		return -EINVAL;
 
 	cp = buf;
-	spin_lock_irqsave(&tunables->target_frequency_delay_lock, flags);
+	spin_lock_irqsave(&tunables->target_sampling_rate_lock, flags);
 	for (i = 0; i < ntokens; i++) {
-		if (sscanf(cp, "%u", &tunables->up_target_frequency_delay[i]) != 1) {
-			spin_unlock_irqrestore(&tunables->target_frequency_delay_lock, flags);
-			return -EINVAL;
+		if (sscanf(cp, "%u", &value) != 1) {
+			spin_unlock_irqrestore(&tunables->target_sampling_rate_lock, flags);
 		} else {
-			pr_debug("index[%d], val[%u]\n", i, tunables->up_target_frequency_delay[i]);
+			if (!value
+				&& i < (ntokens - 1))
+				value = 1;
+			tunables->up_target_sampling_rate[i] = value;
+			pr_debug("index[%d], val[%u]\n", i, tunables->up_target_sampling_rate[i]);
 		}
 
 		cp = strpbrk(cp, ":");
@@ -1186,13 +1191,13 @@ static ssize_t store_up_target_frequency_delay(
 			break;
 		cp++;
 	}
-	spin_unlock_irqrestore(&tunables->target_frequency_delay_lock, flags);
+	spin_unlock_irqrestore(&tunables->target_sampling_rate_lock, flags);
 
 	return count;
 }
 
-/* down_target_frequency_delay */
-static ssize_t show_down_target_frequency_delay(
+/* down_target_sampling_rate */
+static ssize_t show_down_target_sampling_rate(
 	struct cpufreq_alucard_tunables *tunables,
 	char *buf)
 {
@@ -1200,21 +1205,21 @@ static ssize_t show_down_target_frequency_delay(
 	ssize_t ret = 0;
 	unsigned long flags;
 
-	if (!tunables->down_target_frequency_delay)
+	if (!tunables->down_target_sampling_rate)
 		return -EINVAL;
 
-	spin_lock_irqsave(&tunables->target_frequency_delay_lock, flags);
-	for (i = 0; i < tunables->ntarget_frequency_delay; i++)
-		ret += sprintf(buf + ret, "%u%s", tunables->down_target_frequency_delay[i],
+	spin_lock_irqsave(&tunables->target_sampling_rate_lock, flags);
+	for (i = 0; i < tunables->ntarget_sampling_rate; i++)
+		ret += sprintf(buf + ret, "%u%s", tunables->down_target_sampling_rate[i],
 			       ":");
-	spin_unlock_irqrestore(&tunables->target_frequency_delay_lock, flags);
+	spin_unlock_irqrestore(&tunables->target_sampling_rate_lock, flags);
 
 	sprintf(buf + ret - 1, "\n");
 
 	return ret;
 }
 
-static ssize_t store_down_target_frequency_delay(
+static ssize_t store_down_target_sampling_rate(
 	struct cpufreq_alucard_tunables *tunables,
 	const char *buf, size_t count)
 {
@@ -1222,25 +1227,29 @@ static ssize_t store_down_target_frequency_delay(
 	int i;
 	int ntokens = 1;
 	unsigned long flags;
+	unsigned int value = 0;
 
-	if (!tunables->down_target_frequency_delay)
+	if (!tunables->down_target_sampling_rate)
 		return -EINVAL;
 
 	cp = buf;
 	while ((cp = strpbrk(cp + 1, ":")))
 		ntokens++;
 
-	if (ntokens != tunables->ntarget_frequency_delay)
+	if (ntokens != tunables->ntarget_sampling_rate)
 		return -EINVAL;
 
 	cp = buf;
-	spin_lock_irqsave(&tunables->target_frequency_delay_lock, flags);
+	spin_lock_irqsave(&tunables->target_sampling_rate_lock, flags);
 	for (i = 0; i < ntokens; i++) {
-		if (sscanf(cp, "%u", &tunables->down_target_frequency_delay[i]) != 1) {
-			spin_unlock_irqrestore(&tunables->target_frequency_delay_lock, flags);
-			return -EINVAL;
+		if (sscanf(cp, "%u", &value) != 1) {
+			spin_unlock_irqrestore(&tunables->target_sampling_rate_lock, flags);
 		} else {
-			pr_debug("index[%d], val[%u]\n", i, tunables->down_target_frequency_delay[i]);
+			if (!value
+				&& i > 0)
+				value = 1;
+			tunables->down_target_sampling_rate[i] = value;
+			pr_debug("index[%d], val[%u]\n", i, tunables->down_target_sampling_rate[i]);
 		}
 
 		cp = strpbrk(cp, ":");
@@ -1248,7 +1257,7 @@ static ssize_t store_down_target_frequency_delay(
 			break;
 		cp++;
 	}
-	spin_unlock_irqrestore(&tunables->target_frequency_delay_lock, flags);
+	spin_unlock_irqrestore(&tunables->target_sampling_rate_lock, flags);
 
 	return count;
 }
@@ -1412,6 +1421,7 @@ show_store_one(align_windows);
 show_store_one(enable_prediction);
 show_store_one(freq_responsiveness);
 show_store_one(load_responsiveness);
+show_store_one(ignore_responsiveness_on_notif);
 
 static ssize_t show_timer_rate(struct cpufreq_alucard_tunables *tunables,
 		char *buf)
@@ -1711,8 +1721,8 @@ show_store_gov_pol_sys(freq_responsiveness);
 show_store_gov_pol_sys(load_responsiveness);
 show_store_gov_pol_sys(up_target_loads);
 show_store_gov_pol_sys(down_target_loads);
-show_store_gov_pol_sys(up_target_frequency_delay);
-show_store_gov_pol_sys(down_target_frequency_delay);
+show_store_gov_pol_sys(up_target_sampling_rate);
+show_store_gov_pol_sys(down_target_sampling_rate);
 show_store_gov_pol_sys(up_target_pump_step);
 show_store_gov_pol_sys(down_target_pump_step);
 show_store_gov_pol_sys(timer_rate);
@@ -1723,6 +1733,7 @@ show_store_gov_pol_sys(use_sched_load);
 show_store_gov_pol_sys(use_migration_notif);
 show_store_gov_pol_sys(align_windows);
 #endif
+show_store_gov_pol_sys(ignore_responsiveness_on_notif);
 show_store_gov_pol_sys(enable_prediction);
 
 #define gov_sys_attr_rw(_name)						\
@@ -1741,8 +1752,8 @@ gov_sys_pol_attr_rw(freq_responsiveness);
 gov_sys_pol_attr_rw(load_responsiveness);
 gov_sys_pol_attr_rw(up_target_loads);
 gov_sys_pol_attr_rw(down_target_loads);
-gov_sys_pol_attr_rw(up_target_frequency_delay);
-gov_sys_pol_attr_rw(down_target_frequency_delay);
+gov_sys_pol_attr_rw(up_target_sampling_rate);
+gov_sys_pol_attr_rw(down_target_sampling_rate);
 gov_sys_pol_attr_rw(up_target_pump_step);
 gov_sys_pol_attr_rw(down_target_pump_step);
 gov_sys_pol_attr_rw(timer_rate);
@@ -1753,6 +1764,7 @@ gov_sys_pol_attr_rw(use_sched_load);
 gov_sys_pol_attr_rw(use_migration_notif);
 gov_sys_pol_attr_rw(align_windows);
 #endif
+gov_sys_pol_attr_rw(ignore_responsiveness_on_notif);
 gov_sys_pol_attr_rw(enable_prediction);
 
 /* One Governor instance for entire system */
@@ -1761,8 +1773,8 @@ static struct attribute *alucard_attributes_gov_sys[] = {
 	&load_responsiveness_gov_sys.attr,
 	&up_target_loads_gov_sys.attr,
 	&down_target_loads_gov_sys.attr,
-	&up_target_frequency_delay_gov_sys.attr,
-	&down_target_frequency_delay_gov_sys.attr,
+	&up_target_sampling_rate_gov_sys.attr,
+	&down_target_sampling_rate_gov_sys.attr,
 	&up_target_pump_step_gov_sys.attr,
 	&down_target_pump_step_gov_sys.attr,
 	&timer_rate_gov_sys.attr,
@@ -1773,6 +1785,7 @@ static struct attribute *alucard_attributes_gov_sys[] = {
 	&use_migration_notif_gov_sys.attr,
 	&align_windows_gov_sys.attr,
 #endif
+	&ignore_responsiveness_on_notif_gov_sys.attr,
 	&enable_prediction_gov_sys.attr,
 	NULL,
 };
@@ -1788,8 +1801,8 @@ static struct attribute *alucard_attributes_gov_pol[] = {
 	&load_responsiveness_gov_pol.attr,
 	&up_target_loads_gov_pol.attr,
 	&down_target_loads_gov_pol.attr,
-	&up_target_frequency_delay_gov_pol.attr,
-	&down_target_frequency_delay_gov_pol.attr,
+	&up_target_sampling_rate_gov_pol.attr,
+	&down_target_sampling_rate_gov_pol.attr,
 	&up_target_pump_step_gov_pol.attr,
 	&down_target_pump_step_gov_pol.attr,
 	&timer_rate_gov_pol.attr,
@@ -1800,6 +1813,7 @@ static struct attribute *alucard_attributes_gov_pol[] = {
 	&use_migration_notif_gov_pol.attr,
 	&align_windows_gov_pol.attr,
 #endif
+	&ignore_responsiveness_on_notif_gov_pol.attr,
 	&enable_prediction_gov_pol.attr,
 	NULL,
 };
@@ -1836,9 +1850,9 @@ static struct cpufreq_alucard_tunables *alloc_tunable(
 		tunables->up_target_loads = little_up_target_loads;
 		tunables->down_target_loads = little_down_target_loads;
 		tunables->ntarget_loads = LITTLE_NFREQS;
-		tunables->up_target_frequency_delay = little_up_target_frequency_delay;
-		tunables->down_target_frequency_delay = little_down_target_frequency_delay;
-		tunables->ntarget_frequency_delay = LITTLE_NFREQS;
+		tunables->up_target_sampling_rate = little_up_target_sampling_rate;
+		tunables->down_target_sampling_rate = little_down_target_sampling_rate;
+		tunables->ntarget_sampling_rate = LITTLE_NFREQS;
 		tunables->up_target_pump_step = little_up_target_pump_step;
 		tunables->down_target_pump_step = little_down_target_pump_step;
 		tunables->ntarget_pump_step = LITTLE_NFREQS;
@@ -1848,9 +1862,9 @@ static struct cpufreq_alucard_tunables *alloc_tunable(
 		tunables->up_target_loads = big_up_target_loads;
 		tunables->down_target_loads = big_down_target_loads;
 		tunables->ntarget_loads = BIG_NFREQS;
-		tunables->up_target_frequency_delay = big_up_target_frequency_delay;
-		tunables->down_target_frequency_delay = big_down_target_frequency_delay;
-		tunables->ntarget_frequency_delay = BIG_NFREQS;
+		tunables->up_target_sampling_rate = big_up_target_sampling_rate;
+		tunables->down_target_sampling_rate = big_down_target_sampling_rate;
+		tunables->ntarget_sampling_rate = BIG_NFREQS;
 		tunables->up_target_pump_step = big_up_target_pump_step;
 		tunables->down_target_pump_step = big_down_target_pump_step;
 		tunables->ntarget_pump_step = BIG_NFREQS;
@@ -1862,9 +1876,9 @@ static struct cpufreq_alucard_tunables *alloc_tunable(
 	tunables->use_sched_load = true;
 	tunables->use_migration_notif = true;
 #endif
-
+	tunables->ignore_responsiveness_on_notif = true;
 	spin_lock_init(&tunables->target_loads_lock);
-	spin_lock_init(&tunables->target_frequency_delay_lock);
+	spin_lock_init(&tunables->target_sampling_rate_lock);
 	spin_lock_init(&tunables->target_pump_step_lock);
 
 	return tunables;
@@ -2049,8 +2063,9 @@ static int cpufreq_governor_alucard(struct cpufreq_policy *policy,
 		ppol->p_nolim = *policy;
 		ppol->p_nolim.min = policy->cpuinfo.min_freq;
 		ppol->p_nolim.max = policy->cpuinfo.max_freq;
-		ppol->last_freq_update_time = ktime_to_us(ktime_get());
 		ppol->min_freq = policy->min;
+		ppol->up_sampling_rate = 1;
+		ppol->down_sampling_rate = 1;
 		ppol->reject_notification = true;
 		ppol->notif_pending = false;
 		down_write(&ppol->enable_sem);
