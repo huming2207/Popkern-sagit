@@ -33,6 +33,7 @@ static bool enable_netlink_ws = true;
 static bool enable_netmgr_wl_ws = true;
 static bool enable_wlan_ipa_ws = true;
 static bool enable_wlan_pno_wl_ws = true;
+static bool enable_wcnss_filter_lock_ws = true;
 
 module_param(enable_qcom_rx_wakelock_ws, bool, 0644);
 module_param(enable_wlan_extscan_wl_ws, bool, 0644);
@@ -44,6 +45,7 @@ module_param(enable_netlink_ws, bool, 0644);
 module_param(enable_netmgr_wl_ws, bool, 0644);
 module_param(enable_wlan_ipa_ws, bool, 0644);
 module_param(enable_wlan_pno_wl_ws, bool, 0644);
+module_param(enable_wcnss_filter_lock_ws, bool, 0644);
 
 /*
  * If set, the suspend/hibernate code will abort transitions to a sleep state
@@ -666,6 +668,8 @@ static bool wakeup_source_blocker(struct wakeup_source *ws)
 				!strncmp(ws->name, "wlan_ipa", wslen)) ||
 			(!enable_wlan_pno_wl_ws &&
 				!strncmp(ws->name, "wlan_pno_wl", wslen)) ||
+			(!enable_wcnss_filter_lock_ws &&
+				!strncmp(ws->name, "wcnss_filter_lock", wslen)) ||
                         (!enable_netlink_ws &&
                                 !strncmp(ws->name, "NETLINK", wslen))) {
 
