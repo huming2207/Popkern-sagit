@@ -318,11 +318,11 @@ static unsigned int big_down_target_frequency_delay[BIG_NFREQS] = {
 };
 
 static unsigned int little_up_target_pump_step[LITTLE_NFREQS] = {
-	1,
-	1,
-	1,
-	1,
-	1,
+	2,
+	2,
+	2,
+	2,
+	2,
 	1,
 	1,
 	1,
