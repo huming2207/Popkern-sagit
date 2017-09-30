@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *             http://www.samsung.com/
+ * Copyright (C) 2017 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1072,7 +1073,8 @@ int do_write_data_page(struct f2fs_io_info *fio)
 		f2fs_wait_on_encrypted_page_writeback(F2FS_I_SB(inode),
 							fio->blk_addr);
 
-		fio->encrypted_page = f2fs_encrypt(inode, fio->page);
+		if (!f2fs_using_hardware_encryption(inode))
+			fio->encrypted_page = f2fs_encrypt(inode, fio->page);
 		if (IS_ERR(fio->encrypted_page)) {
 			err = PTR_ERR(fio->encrypted_page);
 			goto out_writepage;

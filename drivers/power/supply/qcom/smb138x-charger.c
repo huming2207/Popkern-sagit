@@ -1,4 +1,5 @@
 /* Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
+ * Copyright (C) 2017 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -14,6 +15,7 @@
 
 #include <linux/device.h>
 #include <linux/iio/consumer.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -258,7 +260,7 @@ static int smb138x_usb_get_prop(struct power_supply *psy,
 		val->intval = chg->usb_psy_desc.type;
 		break;
 	case POWER_SUPPLY_PROP_TYPEC_MODE:
-		rc = smblib_get_prop_typec_mode(chg, val);
+		val->intval = chg->typec_mode;
 		break;
 	case POWER_SUPPLY_PROP_TYPEC_POWER_ROLE:
 		rc = smblib_get_prop_typec_power_role(chg, val);

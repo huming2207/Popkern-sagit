@@ -1,4 +1,5 @@
 /* Copyright (c) 2016-2017, Linux Foundation. All rights reserved.
+ * Copyright (C) 2017 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -877,7 +878,7 @@ static void usbpd_set_state(struct usbpd *pd, enum usbpd_state next_state)
 	case PE_SNK_STARTUP:
 		if (pd->current_dr == DR_NONE || pd->current_dr == DR_UFP) {
 			pd->current_dr = DR_UFP;
-
+			usbpd_info(&pd->dev, "%s: psy type was %d\n",  __func__, pd->psy_type);
 			if (pd->psy_type == POWER_SUPPLY_TYPE_USB ||
 				pd->psy_type == POWER_SUPPLY_TYPE_USB_CDP)
 				start_usb_peripheral(pd);

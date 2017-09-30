@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -133,7 +133,7 @@ static void msm_ispif_get_pack_mask_from_cfg(
 			pack_mask[0] |= temp;
 		CDBG("%s:num %d cid %d mode %d pack_mask %x %x\n",
 			__func__, entry->num_cids, entry->cids[i],
-			pack_cfg[entry->cids[i]].pack_mode,
+			pack_cfg[i].pack_mode,
 			pack_mask[0], pack_mask[1]);
 
 	}
@@ -163,16 +163,6 @@ static int msm_ispif_config2(struct ispif_device *ispif,
 			params->num);
 		rc = -EINVAL;
 		return rc;
-	}
-
-	for (i = 0; i < params->num; i++) {
-		int j;
-
-		if (params->entries[i].num_cids > MAX_CID_CH_PARAM_ENTRY)
-			return -EINVAL;
-		for (j = 0; j < params->entries[i].num_cids; j++)
-			if (params->entries[i].cids[j] >= CID_MAX)
-				return -EINVAL;
 	}
 
 	for (i = 0; i < params->num; i++) {
@@ -1662,7 +1652,7 @@ static long msm_ispif_subdev_fops_ioctl(struct file *file, unsigned int cmd,
 static int ispif_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct ispif_device *ispif = v4l2_get_subdevdata(sd);
-	int rc = 0;
+	int rc;
 
 	mutex_lock(&ispif->mutex);
 	if (0 == ispif->open_cnt) {

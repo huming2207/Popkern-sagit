@@ -104,6 +104,15 @@ fw-shipped-$(CONFIG_USB_EMI62) += emi62/loader.fw emi62/bitstream.fw \
 fw-shipped-$(CONFIG_USB_KAWETH) += kaweth/new_code.bin kaweth/trigger_code.bin \
 				   kaweth/new_code_fix.bin \
 				   kaweth/trigger_code_fix.bin
+
+fw-shipped-$(CONFIG_TOUCHSCREEN_ST_FTS) += st_fts_lg.ftb
+
+fw-shipped-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_FORCE) += synaptics_jdi_3331_c1.fw \
+	synaptics_jdi_3330_c1.fw synaptics_lgd_4322_c1.fw
+
+fw-shipped-$(CONFIG_TOUCHSCREEN_FT5X46) += ft5216_biel.fw
+
+
 ifdef CONFIG_FIRMWARE_IN_KERNEL
 fw-shipped-$(CONFIG_USB_SERIAL_KEYSPAN_MPR) += keyspan/mpr.fw
 fw-shipped-$(CONFIG_USB_SERIAL_KEYSPAN_USA18X) += keyspan/usa18x.fw

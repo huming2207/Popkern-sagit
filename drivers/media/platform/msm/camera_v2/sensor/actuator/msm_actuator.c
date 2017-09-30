@@ -1,4 +1,5 @@
-/* Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2016, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2017 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -30,6 +31,8 @@ DEFINE_MSM_MUTEX(msm_actuator_mutex);
 #define PARK_LENS_MID_STEP 5
 #define PARK_LENS_SMALL_STEP 3
 #define MAX_QVALUE 4096
+
+#define FL 4
 
 static struct v4l2_file_operations msm_actuator_v4l2_subdev_fops;
 static int32_t msm_actuator_power_up(struct msm_actuator_ctrl_t *a_ctrl);
@@ -379,6 +382,7 @@ static int32_t msm_actuator_init_focus(struct msm_actuator_ctrl_t *a_ctrl,
 
 		switch (settings[i].i2c_operation) {
 		case MSM_ACT_WRITE:
+			usleep_range(1000, 2000);
 			rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write(
 				&a_ctrl->i2c_client,
 				settings[i].reg_addr,
@@ -528,12 +532,6 @@ static int32_t msm_actuator_piezo_move_focus(
 		return -EFAULT;
 	}
 
-	if (dest_step_position > a_ctrl->total_steps) {
-		pr_err("Step pos greater than total steps = %d\n",
-			dest_step_position);
-		return -EFAULT;
-	}
-
 	a_ctrl->i2c_tbl_index = 0;
 	a_ctrl->func_tbl->actuator_parse_i2c_params(a_ctrl,
 		(num_steps *
@@ -555,6 +553,9 @@ static int32_t msm_actuator_piezo_move_focus(
 	return rc;
 }
 
+extern void msm_ois_shift_gain(int distance);
+extern bool SENSOR_SUPPORT_OIS_FLAG;
+
 static int32_t msm_actuator_move_focus(
 	struct msm_actuator_ctrl_t *a_ctrl,
 	struct msm_actuator_move_params_t *move_params)
@@ -570,7 +571,9 @@ static int32_t msm_actuator_move_focus(
 	int dir = move_params->dir;
 	int32_t num_steps = move_params->num_steps;
 	struct msm_camera_i2c_reg_setting reg_setting;
-
+	int distance = 0;
+	int target_margin = 0;
+	int origin_total = 0;
 	CDBG("called, dir %d, num_steps %d\n", dir, num_steps);
 
 	if (dest_step_pos == a_ctrl->curr_step_pos)
@@ -666,6 +669,18 @@ static int32_t msm_actuator_move_focus(
 		return rc;
 	}
 	a_ctrl->i2c_tbl_index = 0;
+	if (target_step_pos > 0) {
+		origin_total = ((a_ctrl->total_steps * 100) / 140);
+		target_margin = ((origin_total * 35) / 100);
+		if (target_step_pos > target_margin) {
+			distance = (((FL + (FL * (FL * origin_total))) / (target_step_pos - target_margin)) / 2);
+		} else {
+			distance = ((FL + (FL * (FL * origin_total) / 1)) / 2);
+		}
+		distance = distance < 10 ? 10 : distance;
+		msm_ois_shift_gain(distance);
+		CDBG("[OIS] target_step_pos=%d total_steps=%d ois distance=%d \n", target_step_pos, a_ctrl->total_steps, distance);
+	}
 	CDBG("Exit\n");
 
 	return rc;
@@ -1936,8 +1951,10 @@ static int32_t msm_actuator_platform_probe(struct platform_device *pdev)
 	}
 	rc = msm_sensor_driver_get_gpio_data(&(msm_actuator_t->gconf),
 		(&pdev->dev)->of_node);
-	if (rc <= 0) {
+	if (rc < 0) {
 		pr_err("%s: No/Error Actuator GPIOs\n", __func__);
+	} else if (!msm_actuator_t->gconf) {
+		pr_err("%s: %d: Actuator no GPIO control\n", __func__, __LINE__);
 	} else {
 		msm_actuator_t->cam_pinctrl_status = 1;
 		rc = msm_camera_pinctrl_init(

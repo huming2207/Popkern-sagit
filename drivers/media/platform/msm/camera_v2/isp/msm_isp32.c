@@ -1305,7 +1305,7 @@ static void msm_vfe32_stats_enable_module(struct vfe_device *vfe_dev,
 
 static void msm_vfe32_stats_update_ping_pong_addr(struct vfe_device *vfe_dev,
 	struct msm_vfe_stats_stream *stream_info, uint32_t pingpong_status,
-	dma_addr_t paddr, uint32_t buf_sz)
+	dma_addr_t paddr)
 {
 	void __iomem *vfe_base = vfe_dev->vfe_base;
 	int vfe_idx = msm_isp_get_vfe_idx_for_stats_stream(vfe_dev,

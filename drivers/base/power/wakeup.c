@@ -2,6 +2,7 @@
  * drivers/base/power/wakeup.c - System wakeup events framework
  *
  * Copyright (c) 2010 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+ * Copyright (C) 2017 XiaoMi, Inc.
  *
  * This file is released under the GPLv2.
  */
@@ -870,6 +871,7 @@ EXPORT_SYMBOL_GPL(pm_print_active_wakeup_sources);
  * since the old value was stored.  Also return true if the current number of
  * wakeup events being processed is different from zero.
  */
+bool wakeup_irq_abort_suspend;
 bool pm_wakeup_pending(void)
 {
 	unsigned long flags;
@@ -896,6 +898,7 @@ bool pm_wakeup_pending(void)
 void pm_system_wakeup(void)
 {
 	pm_abort_suspend = true;
+	wakeup_irq_abort_suspend = true;
 	freeze_wake();
 }
 EXPORT_SYMBOL_GPL(pm_system_wakeup);
@@ -903,6 +906,7 @@ EXPORT_SYMBOL_GPL(pm_system_wakeup);
 void pm_wakeup_clear(void)
 {
 	pm_abort_suspend = false;
+	wakeup_irq_abort_suspend = false;
 	pm_wakeup_irq = 0;
 }
 

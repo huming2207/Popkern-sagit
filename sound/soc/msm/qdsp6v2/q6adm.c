@@ -1046,7 +1046,7 @@ static int32_t adm_callback(struct apr_client_data *data, void *priv)
 	payload = data->payload;
 
 	if (data->opcode == RESET_EVENTS) {
-		pr_debug("%s: Reset event is received: %d %d apr[%pK]\n",
+		pr_err("%s: Reset event is received: %d %d apr[%pK]\n",
 			__func__,
 			data->reset_event, data->reset_proc, this_adm.apr);
 		if (this_adm.apr) {

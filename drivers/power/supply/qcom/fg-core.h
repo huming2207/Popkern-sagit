@@ -1,4 +1,5 @@
 /* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2017 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -271,6 +272,7 @@ struct fg_batt_props {
 	int		float_volt_uv;
 	int		vbatt_full_mv;
 	int		fastchg_curr_ma;
+	int		nom_cap_uah;
 };
 
 struct fg_cyc_ctr_data {
@@ -405,6 +407,7 @@ struct fg_chip {
 	struct work_struct	cycle_count_work;
 	struct delayed_work	batt_avg_work;
 	struct delayed_work	sram_dump_work;
+	struct delayed_work	soc_work;
 	struct fg_circ_buf	ibatt_circ_buf;
 	struct fg_circ_buf	vbatt_circ_buf;
 };

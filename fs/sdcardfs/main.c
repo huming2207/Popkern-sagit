@@ -1,6 +1,7 @@
 /*
  * fs/sdcardfs/main.c
  *
+ * Copyright (C) 2017 XiaoMi, Inc.
  * Copyright (c) 2013 Samsung Electronics Co. Ltd
  *   Authors: Daeho Jeong, Woojoong Lee, Seunghwan Hyun,
  *               Sunghwan Yun, Sungjong Seo
@@ -222,6 +223,13 @@ static int sdcardfs_read_super(struct super_block *sb, const char *dev_name,
 	lower_sb = lower_path.dentry->d_sb;
 	atomic_inc(&lower_sb->s_active);
 	sdcardfs_set_lower_super(sb, lower_sb);
+
+	sb->s_stack_depth = lower_sb->s_stack_depth + 1;
+	if (sb->s_stack_depth > FILESYSTEM_MAX_STACK_DEPTH) {
+		pr_err("sdcardfs: maximum fs stacking depth exceeded\n");
+		err = -EINVAL;
+		goto out_sput;
+	}
 
 	/* inherit maxbytes from lower file system */
 	sb->s_maxbytes = lower_sb->s_maxbytes;

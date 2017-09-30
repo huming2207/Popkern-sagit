@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 1999 Eric Youngdale
  * Copyright (C) 2014 Christoph Hellwig
+ * Copyright (C) 2017 XiaoMi, Inc.
  *
  *  SCSI queueing library.
  *      Initial versions: Eric Youngdale (eric@andante.org).
@@ -1835,9 +1836,12 @@ static void scsi_request_fn(struct request_queue *q)
 		if (!scsi_target_queue_ready(shost, sdev))
 			goto not_ready;
 
-		if (!scsi_host_queue_ready(q, shost, sdev))
+		preempt_disable();
+		if (!scsi_host_queue_ready(q, shost, sdev)) {
+			preempt_enable_no_resched();
 			goto host_not_ready;
-	
+		}
+
 		if (sdev->simple_tags)
 			cmd->flags |= SCMD_TAGGED;
 		else
@@ -1856,9 +1860,12 @@ static void scsi_request_fn(struct request_queue *q)
 		rtn = scsi_dispatch_cmd(cmd);
 		if (rtn) {
 			scsi_queue_insert(cmd, rtn);
+			preempt_enable_no_resched();
 			spin_lock_irq(q->queue_lock);
 			goto out_delay;
 		}
+		preempt_enable_no_resched();
+
 		spin_lock_irq(q->queue_lock);
 	}
 

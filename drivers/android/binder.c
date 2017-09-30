@@ -3,6 +3,7 @@
  * Android IPC Subsystem
  *
  * Copyright (C) 2007-2008 Google, Inc.
+ * Copyright (C) 2017 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -2500,7 +2501,7 @@ static int binder_thread_write(struct binder_proc *proc,
 				if (list_empty(&buffer->target_node->async_todo))
 					buffer->target_node->has_async_transaction = 0;
 				else
-					list_move_tail(buffer->target_node->async_todo.next, &thread->todo);
+					list_move_tail(buffer->target_node->async_todo.next, &proc->todo);
 			}
 			trace_binder_transaction_buffer_release(buffer);
 			binder_transaction_buffer_release(proc, buffer, NULL);

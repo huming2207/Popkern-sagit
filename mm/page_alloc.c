@@ -4,6 +4,7 @@
  *  Manages the free list, the system allocates free pages here.
  *  Note that kmalloc() lives in slab.c
  *
+ *  Copyright (C) 2017 XiaoMi, Inc.
  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
  *  Swap reorganised 29.12.95, Stephen Tweedie
  *  Support of BIGMEM added by Gerhard Wichert, Siemens AG, July 1999
@@ -1600,7 +1601,7 @@ static void change_pageblock_range(struct page *pageblock_page,
  * is worse than movable allocations stealing from unmovable and reclaimable
  * pageblocks.
  */
-static bool can_steal_fallback(unsigned int order, int start_mt)
+static bool can_steal_fallback(unsigned int order, int start_mt, int fallback_type)
 {
 	/*
 	 * Leaving this order check is intended, although there is
@@ -1614,7 +1615,7 @@ static bool can_steal_fallback(unsigned int order, int start_mt)
 
 	if (order >= pageblock_order / 2 ||
 		start_mt == MIGRATE_RECLAIMABLE ||
-		start_mt == MIGRATE_UNMOVABLE ||
+		(start_mt == MIGRATE_UNMOVABLE && fallback_type != MIGRATE_MOVABLE) ||
 		page_group_by_mobility_disabled)
 		return true;
 
@@ -1672,7 +1673,7 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
 		if (list_empty(&area->free_list[fallback_mt]))
 			continue;
 
-		if (can_steal_fallback(order, migratetype))
+		if (can_steal_fallback(order, migratetype, fallback_mt))
 			*can_steal = true;
 
 		if (!only_stealable)
