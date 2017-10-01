@@ -368,9 +368,9 @@ static unsigned int little_down_target_pump_step[LITTLE_NFREQS] = {
 };
 
 static unsigned int big_up_target_pump_step[BIG_NFREQS] = {
-	1,
-	1,
-	1,
+	2,
+	2,
+	2,
 	1,
 	1,
 	1,
@@ -1917,7 +1917,7 @@ static struct cpufreq_alucard_tunables *alloc_tunable(
 		tunables->up_target_pump_step = little_up_target_pump_step;
 		tunables->down_target_pump_step = little_down_target_pump_step;
 		tunables->ntarget_pump_step = LITTLE_NFREQS;
-		tunables->ignore_responsiveness_on_notif = false;
+		tunables->ignore_responsiveness_on_notif = true;
 	} else {
 		tunables->load_responsiveness = LOAD_RESPONSIVENESS_BIG;
 		tunables->freq_responsiveness = FREQ_RESPONSIVENESS_BIG;
