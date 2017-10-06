@@ -438,7 +438,7 @@ static unsigned int big_down_target_pump_step[BIG_NFREQS] = {
 #define DEFAULT_TIMER_RATE (20 * USEC_PER_MSEC)
 
 #define FREQ_RESPONSIVENESS_LITTLE	1036800
-#define FREQ_RESPONSIVENESS_BIG		1056000
+#define FREQ_RESPONSIVENESS_BIG		576000
 #define LOAD_RESPONSIVENESS_LITTLE	30
 #define LOAD_RESPONSIVENESS_BIG		40
 struct cpufreq_alucard_tunables {
