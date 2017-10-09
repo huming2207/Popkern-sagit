@@ -397,6 +397,7 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Wno-format-security \
 		   -std=gnu89 \
 		   -mcpu=cortex-a57 -mtune=cortex-a57 \
+		   -Wno-bool-compare -Wno-logical-not-parentheses -Wno-incompatible-pointer-types
 		   
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
