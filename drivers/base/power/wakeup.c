@@ -34,20 +34,16 @@ static bool enable_netmgr_wl_ws = true;
 static bool enable_wlan_ipa_ws = true;
 static bool enable_wlan_pno_wl_ws = true;
 static bool enable_wcnss_filter_lock_ws = true;
+
 module_param(enable_qcom_rx_wakelock_ws, bool, 0644);
-static bool enable_wlan_extscan_wl_ws = true;
 module_param(enable_wlan_extscan_wl_ws, bool, 0644);
-static bool enable_wlan_wow_wl_ws = true;
 module_param(enable_wlan_wow_wl_ws, bool, 0644);
-static bool enable_ipa_ws = true;
 module_param(enable_ipa_ws, bool, 0644);
-static bool enable_wlan_ws = true;
 module_param(enable_wlan_ws, bool, 0644);
-static bool enable_timerfd_ws = true;
 module_param(enable_timerfd_ws, bool, 0644);
-static bool enable_wlan_ipa_ws = true;
+module_param(enable_netlink_ws, bool, 0644);
+module_param(enable_netmgr_wl_ws, bool, 0644);
 module_param(enable_wlan_ipa_ws, bool, 0644);
-static bool enable_wlan_pno_wl_ws = true;
 module_param(enable_wlan_pno_wl_ws, bool, 0644);
 module_param(enable_wcnss_filter_lock_ws, bool, 0644);
 
@@ -91,6 +87,8 @@ static void pm_wakeup_timer_fn(unsigned long data);
 static LIST_HEAD(wakeup_sources);
 
 static DECLARE_WAIT_QUEUE_HEAD(wakeup_count_wait_queue);
+
+DEFINE_STATIC_SRCU(wakeup_srcu);
 
 static struct wakeup_source deleted_ws = {
 	.name = "deleted",
@@ -230,7 +228,7 @@ void wakeup_source_remove(struct wakeup_source *ws)
 	spin_lock_irqsave(&events_lock, flags);
 	list_del_rcu(&ws->entry);
 	spin_unlock_irqrestore(&events_lock, flags);
-	synchronize_rcu();
+	synchronize_srcu(&wakeup_srcu);
 }
 EXPORT_SYMBOL_GPL(wakeup_source_remove);
 
@@ -362,13 +360,14 @@ void device_wakeup_detach_irq(struct device *dev)
 void device_wakeup_arm_wake_irqs(void)
 {
 	struct wakeup_source *ws;
+	int srcuidx;
 
-	rcu_read_lock();
+	srcuidx = srcu_read_lock(&wakeup_srcu);
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
 		if (ws->wakeirq)
 			dev_pm_arm_wake_irq(ws->wakeirq);
 	}
-	rcu_read_unlock();
+	srcu_read_unlock(&wakeup_srcu, srcuidx);
 }
 
 /**
@@ -379,13 +378,14 @@ void device_wakeup_arm_wake_irqs(void)
 void device_wakeup_disarm_wake_irqs(void)
 {
 	struct wakeup_source *ws;
+	int srcuidx;
 
-	rcu_read_lock();
+	srcuidx = srcu_read_lock(&wakeup_srcu);
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
 		if (ws->wakeirq)
 			dev_pm_disarm_wake_irq(ws->wakeirq);
 	}
-	rcu_read_unlock();
+	srcu_read_unlock(&wakeup_srcu, srcuidx);
 }
 
 /**
@@ -501,20 +501,6 @@ int device_set_wakeup_enable(struct device *dev, bool enable)
 }
 EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
 
-/**
- * wakeup_source_not_registered - validate the given wakeup source.
- * @ws: Wakeup source to be validated.
- */
-static bool wakeup_source_not_registered(struct wakeup_source *ws)
-{
-	/*
-	 * Use timer struct to check if the given source is initialized
-	 * by wakeup_source_add.
-	 */
-	return ws->timer.function != pm_wakeup_timer_fn ||
-		   ws->timer.data != (unsigned long)ws;
-}
-
 #ifdef CONFIG_PM_AUTOSLEEP
 static void update_prevent_sleep_time(struct wakeup_source *ws, ktime_t now)
 {
@@ -582,39 +568,18 @@ static void wakeup_source_deactivate(struct wakeup_source *ws)
 		wake_up(&wakeup_count_wait_queue);
 }
 
-static bool wakeup_source_blocker(struct wakeup_source *ws)
+/**
+ * wakeup_source_not_registered - validate the given wakeup source.
+ * @ws: Wakeup source to be validated.
+ */
+static bool wakeup_source_not_registered(struct wakeup_source *ws)
 {
-	unsigned int wslen = 0;
-
-	if (ws) {
-		wslen = strlen(ws->name);
-
-		if ((!enable_ipa_ws && !strncmp(ws->name, "IPA_WS", wslen)) ||
-			(!enable_wlan_extscan_wl_ws &&
-				!strncmp(ws->name, "wlan_extscan_wl", wslen)) ||
-			(!enable_qcom_rx_wakelock_ws &&
-				!strncmp(ws->name, "qcom_rx_wakelock", wslen)) ||
-			(!enable_wlan_wow_wl_ws &&
-	                        !strncmp(ws->name, "wlan_wow_wl", wslen)) ||
-			(!enable_wlan_ws &&
-				!strncmp(ws->name, "wlan", wslen)) ||
-			(!enable_wlan_ipa_ws &&
-				!strncmp(ws->name, "wlan_ipa", wslen)) ||
-			(!enable_wlan_pno_wl_ws &&
-				!strncmp(ws->name, "wlan_pno_wl", wslen)) ||
-			(!enable_timerfd_ws &&
-				!strncmp(ws->name, "[timerfd]", wslen))) {
-			if (ws->active) {
-				wakeup_source_deactivate(ws);
-				pr_info("forcefully deactivate wakeup source: %s\n",
-					ws->name);
-			}
-
-			return true;
-		}
-	}
-
-	return false;
+	/*
+	 * Use timer struct to check if the given source is initialized
+	 * by wakeup_source_add.
+	 */
+	return ws->timer.function != pm_wakeup_timer_fn ||
+		   ws->timer.data != (unsigned long)ws;
 }
 
 /*
@@ -949,16 +914,14 @@ EXPORT_SYMBOL_GPL(pm_get_active_wakeup_sources);
 void pm_print_active_wakeup_sources(void)
 {
 	struct wakeup_source *ws;
-	int active = 0;
+	int srcuidx, active = 0;
 	struct wakeup_source *last_activity_ws = NULL;
 
-	rcu_read_lock();
+	srcuidx = srcu_read_lock(&wakeup_srcu);
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
 		if (ws->active) {
 			pr_info("active wakeup source: %s\n", ws->name);
-
-			if (!wakeup_source_blocker(ws))
-				active = 1;
+			active = 1;
 		} else if (!active &&
 			   (!last_activity_ws ||
 			    ktime_to_ns(ws->last_time) >
@@ -970,7 +933,7 @@ void pm_print_active_wakeup_sources(void)
 	if (!active && last_activity_ws)
 		pr_info("last active wakeup source: %s\n",
 			last_activity_ws->name);
-	rcu_read_unlock();
+	srcu_read_unlock(&wakeup_srcu, srcuidx);
 }
 EXPORT_SYMBOL_GPL(pm_print_active_wakeup_sources);
 
@@ -1100,8 +1063,9 @@ void pm_wakep_autosleep_enabled(bool set)
 {
 	struct wakeup_source *ws;
 	ktime_t now = ktime_get();
+	int srcuidx;
 
-	rcu_read_lock();
+	srcuidx = srcu_read_lock(&wakeup_srcu);
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
 		spin_lock_irq(&ws->lock);
 		if (ws->autosleep_enabled != set) {
@@ -1115,7 +1079,7 @@ void pm_wakep_autosleep_enabled(bool set)
 		}
 		spin_unlock_irq(&ws->lock);
 	}
-	rcu_read_unlock();
+	srcu_read_unlock(&wakeup_srcu, srcuidx);
 }
 #endif /* CONFIG_PM_AUTOSLEEP */
 
@@ -1176,15 +1140,16 @@ static int print_wakeup_source_stats(struct seq_file *m,
 static int wakeup_sources_stats_show(struct seq_file *m, void *unused)
 {
 	struct wakeup_source *ws;
+	int srcuidx;
 
 	seq_puts(m, "name\t\tactive_count\tevent_count\twakeup_count\t"
 		"expire_count\tactive_since\ttotal_time\tmax_time\t"
 		"last_change\tprevent_suspend_time\n");
 
-	rcu_read_lock();
+	srcuidx = srcu_read_lock(&wakeup_srcu);
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry)
 		print_wakeup_source_stats(m, ws);
-	rcu_read_unlock();
+	srcu_read_unlock(&wakeup_srcu, srcuidx);
 
 	print_wakeup_source_stats(m, &deleted_ws);
 
