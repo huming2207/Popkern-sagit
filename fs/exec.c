@@ -1131,7 +1131,6 @@ EXPORT_SYMBOL(flush_old_exec);
 
 void would_dump(struct linux_binprm *bprm, struct file *file)
 {
-	if (inode_permission2(file->f_path.mnt, file_inode(file), MAY_READ) < 0)
 	struct inode *inode = file_inode(file);
 	if (inode_permission(inode, MAY_READ) < 0) {
 		struct user_namespace *old, *user_ns;
