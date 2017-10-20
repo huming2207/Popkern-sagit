@@ -899,14 +899,6 @@
 	qcom,en-cabc;
 };
 
-&spmi_bus {
-	qcom,pmi8998@3 {
-		qcom,leds@d000 {
-			qcom,rgb-sync;
-		};
-	};
-};
-
 /* Red led was used for powersupply of White led */
 &red_led {
 	qcom,use-blink;
