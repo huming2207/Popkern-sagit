@@ -1652,6 +1652,10 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 
 	mutex_lock(&fanout_mutex);
 
+	err = -EINVAL;
+	if (!po->running)
+		goto out;
+
 	err = -EALREADY;
 	if (po->fanout)
 		goto out;
@@ -1746,10 +1750,12 @@ static struct packet_fanout *fanout_release(struct sock *sk)
 	if (f) {
 		po->fanout = NULL;
 
-		if (atomic_dec_and_test(&f->sk_ref))
+		if (atomic_dec_and_test(&f->sk_ref)) {
 			list_del(&f->list);
-		else
-			f = NULL;
+			dev_remove_pack(&f->prot_hook);
+			fanout_release_data(f);
+			kfree(f);
+		}
 
 		if (po->rollover)
 			kfree_rcu(po->rollover, rcu);
