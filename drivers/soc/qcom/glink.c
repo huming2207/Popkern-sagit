@@ -30,7 +30,6 @@
 #include "glink_private.h"
 #include "glink_xprt_if.h"
 
-#define GLINK_CTX_CANARY 0x58544324 /* "$CTX" */
 /* Number of internal IPC Logging log pages */
 #define NUM_LOG_PAGES	10
 #define GLINK_PM_QOS_HOLDOFF_MS		10
@@ -40,7 +39,6 @@
 
 #define GLINK_KTHREAD_PRIO 1
 
-static rwlock_t magic_lock;
 /**
  * struct glink_qos_priority_bin - Packet Scheduler's priority bucket
  * @max_rate_kBps:	Maximum rate supported by the priority bucket.
@@ -311,7 +309,6 @@ struct channel_ctx {
 	unsigned long req_rate_kBps;
 	uint32_t tx_intent_cnt;
 	uint32_t tx_cnt;
-	uint32_t magic_number;
 };
 
 static struct glink_core_if core_impl;
@@ -442,33 +439,15 @@ static void glink_core_deinit_xprt_qos_cfg(
 
 static int glink_get_ch_ctx(struct channel_ctx *ctx)
 {
-	unsigned long flags;
-
 	if (!ctx)
 		return -EINVAL;
-	read_lock_irqsave(&magic_lock, flags);
-	if (ctx->magic_number != GLINK_CTX_CANARY) {
-		read_unlock_irqrestore(&magic_lock, flags);
-		return -EINVAL;
-	}
 	rwref_get(&ctx->ch_state_lhb2);
-	read_unlock_irqrestore(&magic_lock, flags);
 	return 0;
 }
 
-static int glink_put_ch_ctx(struct channel_ctx *ctx, bool update_magic)
+static void glink_put_ch_ctx(struct channel_ctx *ctx)
 {
-	unsigned long flags;
-
-	if (!update_magic) {
-		rwref_put(&ctx->ch_state_lhb2);
-		return 0;
-	}
-	write_lock_irqsave(&magic_lock, flags);
-	ctx->magic_number = 0;
 	rwref_put(&ctx->ch_state_lhb2);
-	write_unlock_irqrestore(&magic_lock, flags);
-	return 0;
 }
 
 /**
@@ -1930,13 +1909,13 @@ check_ctx:
 			kfree(flcid);
 		}
 
+		rwref_get(&ctx->ch_state_lhb2);
 		list_add_tail(&ctx->port_list_node, &xprt_ctx->channels);
 
 		GLINK_INFO_PERF_CH_XPRT(ctx, xprt_ctx,
 			"%s: local:GLINK_CHANNEL_CLOSED\n",
 			__func__);
 	}
-	rwref_get(&ctx->ch_state_lhb2);
 	spin_unlock_irqrestore(&xprt_ctx->xprt_ctx_lock_lhb1, flags);
 	rwref_write_put(&xprt_ctx->xprt_state_lhb0);
 	mutex_lock(&xprt_ctx->xprt_dbgfs_lock_lhb4);
@@ -2387,6 +2366,35 @@ static void dummy_tx_cmd_ch_remote_close_ack(struct glink_transport_if *if_ptr,
 }
 
 /**
+ * dummy_tx_cmd_ch_open() - dummy channel open cmd sending function
+ * @if_ptr:	The transport to transmit on.
+ * @lcid:	The local channel id to encode.
+ * @name:	The channel name to encode.
+ * @req_xprt:	The transport the core would like to migrate this channel to.
+ *
+ * Return: 0 on success or standard Linux error code.
+ */
+static int dummy_tx_cmd_ch_open(struct glink_transport_if *if_ptr,
+			uint32_t lcid, const char *name,
+			uint16_t req_xprt)
+{
+	return -EOPNOTSUPP;
+}
+
+/**
+ * dummy_tx_cmd_ch_remote_open_ack() - convert a channel open ack cmd to wire
+ *				format and transmit
+ * @if_ptr:	The transport to transmit on.
+ * @rcid:	The remote channel id to encode.
+ * @xprt_resp:	The response to a transport migration request.
+ */
+static void dummy_tx_cmd_ch_remote_open_ack(struct glink_transport_if *if_ptr,
+					uint32_t rcid, uint16_t xprt_resp)
+{
+	/* intentionally left blank */
+}
+
+/**
  * dummy_get_power_vote_ramp_time() - Dummy Power vote ramp time
  * @if_ptr:	The transport to transmit on.
  * @state:	The power state being requested from the transport.
@@ -2599,7 +2607,6 @@ void *glink_open(const struct glink_open_config *cfg)
 	ctx->notify_tx_abort = cfg->notify_tx_abort;
 	ctx->notify_rx_tracer_pkt = cfg->notify_rx_tracer_pkt;
 	ctx->notify_remote_rx_intent = cfg->notify_remote_rx_intent;
-	ctx->magic_number = GLINK_CTX_CANARY;
 
 	if (!ctx->notify_rx_intent_req)
 		ctx->notify_rx_intent_req = glink_dummy_notify_rx_intent_req;
@@ -2740,13 +2747,13 @@ int glink_close(void *handle)
 
 	GLINK_INFO_CH(ctx, "%s: Closing channel, ctx: %p\n", __func__, ctx);
 	if (ctx->local_open_state == GLINK_CHANNEL_CLOSED) {
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return 0;
 	}
 
 	if (ctx->local_open_state == GLINK_CHANNEL_CLOSING) {
 		/* close already pending */
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return -EBUSY;
 	}
 
@@ -2811,7 +2818,7 @@ relock: xprt_ctx = ctx->transport_ptr;
 
 	rwref_put(&ctx->ch_state_lhb2);
 	rwref_read_put(&xprt_ctx->xprt_state_lhb0);
-	glink_put_ch_ctx(ctx, true);
+	glink_put_ch_ctx(ctx);
 	return ret;
 }
 EXPORT_SYMBOL(glink_close);
@@ -3029,7 +3036,7 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 glink_tx_common_err:
 	rwref_read_put(&ctx->ch_state_lhb2);
 glink_tx_common_err_2:
-	glink_put_ch_ctx(ctx, false);
+	glink_put_ch_ctx(ctx);
 	return ret;
 }
 
@@ -3078,7 +3085,7 @@ int glink_queue_rx_intent(void *handle, const void *pkt_priv, size_t size)
 		/* Can only queue rx intents if channel is fully opened */
 		GLINK_ERR_CH(ctx, "%s: Channel is not fully opened\n",
 			__func__);
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return -EBUSY;
 	}
 
@@ -3087,14 +3094,14 @@ int glink_queue_rx_intent(void *handle, const void *pkt_priv, size_t size)
 		GLINK_ERR_CH(ctx,
 			"%s: Intent pointer allocation failed size[%zu]\n",
 			__func__, size);
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return -ENOMEM;
 	}
 	GLINK_DBG_CH(ctx, "%s: L[%u]:%zu\n", __func__, intent_ptr->id,
 			intent_ptr->intent_size);
 
 	if (ctx->transport_ptr->capabilities & GCAP_INTENTLESS) {
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return ret;
 	}
 
@@ -3104,7 +3111,7 @@ int glink_queue_rx_intent(void *handle, const void *pkt_priv, size_t size)
 	if (ret)
 		/* unable to transmit, dequeue intent */
 		ch_remove_local_rx_intent(ctx, intent_ptr->id);
-	glink_put_ch_ctx(ctx, false);
+	glink_put_ch_ctx(ctx);
 	return ret;
 }
 EXPORT_SYMBOL(glink_queue_rx_intent);
@@ -3136,12 +3143,12 @@ bool glink_rx_intent_exists(void *handle, size_t size)
 		if (size <= intent->intent_size) {
 			spin_unlock_irqrestore(
 				&ctx->local_rx_intent_lst_lock_lhc1, flags);
-			glink_put_ch_ctx(ctx, false);
+			glink_put_ch_ctx(ctx);
 			return true;
 		}
 	}
 	spin_unlock_irqrestore(&ctx->local_rx_intent_lst_lock_lhc1, flags);
-	glink_put_ch_ctx(ctx, false);
+	glink_put_ch_ctx(ctx);
 	return false;
 }
 EXPORT_SYMBOL(glink_rx_intent_exists);
@@ -3170,7 +3177,7 @@ int glink_rx_done(void *handle, const void *ptr, bool reuse)
 	if (IS_ERR_OR_NULL(liid_ptr)) {
 		/* invalid pointer */
 		GLINK_ERR_CH(ctx, "%s: Invalid pointer %p\n", __func__, ptr);
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return -EINVAL;
 	}
 
@@ -3196,7 +3203,7 @@ int glink_rx_done(void *handle, const void *ptr, bool reuse)
 	/* send rx done */
 	ctx->transport_ptr->ops->tx_cmd_local_rx_done(ctx->transport_ptr->ops,
 			ctx->lcid, id, reuse);
-	glink_put_ch_ctx(ctx, false);
+	glink_put_ch_ctx(ctx);
 	return ret;
 }
 EXPORT_SYMBOL(glink_rx_done);
@@ -3250,7 +3257,7 @@ int glink_sigs_set(void *handle, uint32_t sigs)
 	if (!ch_is_fully_opened(ctx)) {
 		GLINK_ERR_CH(ctx, "%s: Channel is not fully opened\n",
 			__func__);
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return -EBUSY;
 	}
 
@@ -3260,7 +3267,7 @@ int glink_sigs_set(void *handle, uint32_t sigs)
 			ctx->lcid, ctx->lsigs);
 	GLINK_INFO_CH(ctx, "%s: Sent SIGNAL SET command\n", __func__);
 
-	glink_put_ch_ctx(ctx, false);
+	glink_put_ch_ctx(ctx);
 	return ret;
 }
 EXPORT_SYMBOL(glink_sigs_set);
@@ -3286,12 +3293,12 @@ int glink_sigs_local_get(void *handle, uint32_t *sigs)
 	if (!ch_is_fully_opened(ctx)) {
 		GLINK_ERR_CH(ctx, "%s: Channel is not fully opened\n",
 			__func__);
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return -EBUSY;
 	}
 
 	*sigs = ctx->lsigs;
-	glink_put_ch_ctx(ctx, false);
+	glink_put_ch_ctx(ctx);
 	return 0;
 }
 EXPORT_SYMBOL(glink_sigs_local_get);
@@ -3318,12 +3325,12 @@ int glink_sigs_remote_get(void *handle, uint32_t *sigs)
 	if (!ch_is_fully_opened(ctx)) {
 		GLINK_ERR_CH(ctx, "%s: Channel is not fully opened\n",
 			__func__);
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return -EBUSY;
 	}
 
 	*sigs = ctx->rsigs;
-	glink_put_ch_ctx(ctx, false);
+	glink_put_ch_ctx(ctx);
 	return 0;
 }
 EXPORT_SYMBOL(glink_sigs_remote_get);
@@ -3428,7 +3435,7 @@ int glink_qos_latency(void *handle, unsigned long latency_us, size_t pkt_size)
 	if (!ch_is_fully_opened(ctx)) {
 		GLINK_ERR_CH(ctx, "%s: Channel is not fully opened\n",
 			__func__);
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return -EBUSY;
 	}
 
@@ -3438,7 +3445,7 @@ int glink_qos_latency(void *handle, unsigned long latency_us, size_t pkt_size)
 	if (ret < 0)
 		GLINK_ERR_CH(ctx, "%s: QoS %lu:%zu cannot be met\n",
 			     __func__, latency_us, pkt_size);
-	glink_put_ch_ctx(ctx, false);
+	glink_put_ch_ctx(ctx);
 	return ret;
 }
 EXPORT_SYMBOL(glink_qos_latency);
@@ -3462,12 +3469,12 @@ int glink_qos_cancel(void *handle)
 	if (!ch_is_fully_opened(ctx)) {
 		GLINK_ERR_CH(ctx, "%s: Channel is not fully opened\n",
 			__func__);
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return -EBUSY;
 	}
 
 	ret = glink_qos_reset_priority(ctx);
-	glink_put_ch_ctx(ctx, false);
+	glink_put_ch_ctx(ctx);
 	return ret;
 }
 EXPORT_SYMBOL(glink_qos_cancel);
@@ -3494,7 +3501,7 @@ int glink_qos_start(void *handle)
 	if (!ch_is_fully_opened(ctx)) {
 		GLINK_ERR_CH(ctx, "%s: Channel is not fully opened\n",
 			__func__);
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return -EBUSY;
 	}
 
@@ -3503,7 +3510,7 @@ int glink_qos_start(void *handle)
 	ret = glink_qos_add_ch_tx_intent(ctx);
 	spin_unlock(&ctx->tx_lists_lock_lhc3);
 	spin_unlock_irqrestore(&ctx->transport_ptr->tx_ready_lock_lhb3, flags);
-	glink_put_ch_ctx(ctx, false);
+	glink_put_ch_ctx(ctx);
 	return ret;
 }
 EXPORT_SYMBOL(glink_qos_start);
@@ -3531,11 +3538,11 @@ unsigned long glink_qos_get_ramp_time(void *handle, size_t pkt_size)
 	if (!ch_is_fully_opened(ctx)) {
 		GLINK_ERR_CH(ctx, "%s: Channel is not fully opened\n",
 			__func__);
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return (unsigned long)-EBUSY;
 	}
 
-	glink_put_ch_ctx(ctx, false);
+	glink_put_ch_ctx(ctx);
 	return ctx->transport_ptr->ops->get_power_vote_ramp_time(
 			ctx->transport_ptr->ops,
 			glink_prio_to_power_state(ctx->transport_ptr,
@@ -3625,10 +3632,10 @@ int glink_wait_link_down(void *handle)
 	if (ret)
 		return ret;
 	if (!ctx->transport_ptr) {
-		glink_put_ch_ctx(ctx, false);
+		glink_put_ch_ctx(ctx);
 		return -EOPNOTSUPP;
 	}
-	glink_put_ch_ctx(ctx, false);
+	glink_put_ch_ctx(ctx);
 	return ctx->transport_ptr->ops->wait_link_down(ctx->transport_ptr->ops);
 }
 EXPORT_SYMBOL(glink_wait_link_down);
@@ -4060,6 +4067,7 @@ static void glink_core_link_down(struct glink_transport_if *if_ptr)
 	rwref_write_get(&xprt_ptr->xprt_state_lhb0);
 	xprt_ptr->next_lcid = 1;
 	xprt_ptr->local_state = GLINK_XPRT_DOWN;
+	xprt_ptr->curr_qos_rate_kBps = 0;
 	xprt_ptr->local_version_idx = xprt_ptr->versions_entries - 1;
 	xprt_ptr->remote_version_idx = xprt_ptr->versions_entries - 1;
 	xprt_ptr->l_features =
@@ -4117,8 +4125,14 @@ static struct glink_core_xprt_ctx *glink_create_dummy_xprt_ctx(
 	if_ptr->tx_cmd_remote_rx_intent_req_ack =
 				dummy_tx_cmd_remote_rx_intent_req_ack;
 	if_ptr->tx_cmd_set_sigs = dummy_tx_cmd_set_sigs;
+	if_ptr->tx_cmd_ch_open = dummy_tx_cmd_ch_open;
+	if_ptr->tx_cmd_ch_remote_open_ack = dummy_tx_cmd_ch_remote_open_ack;
 	if_ptr->tx_cmd_ch_close = dummy_tx_cmd_ch_close;
 	if_ptr->tx_cmd_ch_remote_close_ack = dummy_tx_cmd_ch_remote_close_ack;
+	if_ptr->tx_cmd_tracer_pkt = dummy_tx_cmd_tracer_pkt;
+	if_ptr->get_power_vote_ramp_time = dummy_get_power_vote_ramp_time;
+	if_ptr->power_vote = dummy_power_vote;
+	if_ptr->power_unvote = dummy_power_unvote;
 
 	xprt_ptr->ops = if_ptr;
 	xprt_ptr->log_ctx = log_ctx;
@@ -6165,7 +6179,6 @@ EXPORT_SYMBOL(glink_get_xprt_log_ctx);
 static int glink_init(void)
 {
 	log_ctx = ipc_log_context_create(NUM_LOG_PAGES, "glink", 0);
-	rwlock_init(&magic_lock);
 	if (!log_ctx)
 		GLINK_ERR("%s: unable to create log context\n", __func__);
 	glink_debugfs_init();

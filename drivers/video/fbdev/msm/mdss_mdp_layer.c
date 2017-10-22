@@ -1695,11 +1695,24 @@ static struct mdss_mdp_pipe *__find_and_move_cleanup_pipe(
 	enum mdss_mdp_pipe_rect rect_num)
 {
 	struct mdss_mdp_pipe *pipe = NULL;
+	struct mdss_mdp_data *buf, *tmpbuf;
 
 	if (__find_pipe_in_list(&mdp5_data->pipes_destroy,
 				pipe_ndx, &pipe, rect_num)) {
 		pr_debug("reuse destroy pipe id:%d ndx:%d rect:%d\n",
 				pipe->num, pipe_ndx, rect_num);
+		/*
+		 * Pipe is being moved from destroy list to used list.
+		 * It is possible that the buffer which was attached to a pipe
+		 * in destroy list hasn't been cleaned up yet. Mark the buffers
+		 * as cleanup to make sure that they will be freed before the
+		 * pipe is reused.
+		 */
+		list_for_each_entry_safe(buf, tmpbuf, &pipe->buf_queue,
+						pipe_list) {
+			buf->state = MDP_BUF_STATE_CLEANUP;
+			list_del_init(&buf->pipe_list);
+		}
 		list_move(&pipe->list, &mdp5_data->pipes_used);
 	} else if (__find_pipe_in_list(&mdp5_data->pipes_cleanup,
 				pipe_ndx, &pipe, rect_num)) {
@@ -1816,13 +1829,16 @@ static int __validate_secure_session(struct mdss_overlay_private *mdp5_data)
 
 	pr_debug("pipe count:: secure display:%d non-secure:%d secure-vid:%d,secure-cam:%d\n",
 		sd_pipes, nonsd_pipes, secure_vid_pipes, secure_cam_pipes);
+	MDSS_XLOG(mdss_get_sd_client_cnt(), sd_pipes, nonsd_pipes,
+			secure_vid_pipes, secure_cam_pipes);
 
 	if (mdss_get_sd_client_cnt() && !mdp5_data->sd_enabled) {
 		pr_err("Secure session already enabled for other client\n");
 		return -EINVAL;
 	}
 
-	if ((sd_pipes) &&
+	if (((sd_pipes) || (mdp5_data->ctl->is_video_mode &&
+		mdss_get_sd_client_cnt())) &&
 		(nonsd_pipes || secure_vid_pipes ||
 		secure_cam_pipes)) {
 		pr_err("non-secure layer validation request during secure display session\n");
@@ -3118,6 +3134,14 @@ int mdss_mdp_layer_pre_commit_wfd(struct msm_fb_data_type *mfd,
 		sync_pt_data = &mfd->mdp_sync_pt_data;
 		mutex_lock(&sync_pt_data->sync_mutex);
 		count = sync_pt_data->acq_fen_cnt;
+
+		if (count >= MDP_MAX_FENCE_FD) {
+			pr_err("Reached maximum possible value for fence count\n");
+			mutex_unlock(&sync_pt_data->sync_mutex);
+			rc = -EINVAL;
+			goto input_layer_err;
+		}
+
 		sync_pt_data->acq_fen[count] = fence;
 		sync_pt_data->acq_fen_cnt++;
 		mutex_unlock(&sync_pt_data->sync_mutex);
