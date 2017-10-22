@@ -757,13 +757,14 @@ int apr_deregister(void *handle)
 	if (!handle)
 		return -EINVAL;
 
+	mutex_lock(&svc->m_lock);
 	if (!svc->svc_cnt) {
 		pr_err("%s: svc already deregistered. svc = %pK\n",
 			__func__, svc);
+		mutex_unlock(&svc->m_lock);
 		return -EINVAL;
 	}
 
-	mutex_lock(&svc->m_lock);
 	dest_id = svc->dest_id;
 	client_id = svc->client_id;
 	clnt = &client[dest_id][client_id];
@@ -855,6 +856,7 @@ static void dispatch_event(unsigned long code, uint16_t proc)
 	uint16_t clnt;
 	int i, j;
 
+	memset(&data, 0, sizeof(data));
 	data.opcode = RESET_EVENTS;
 	data.reset_event = code;
 
@@ -921,8 +923,10 @@ static int apr_notifier_service_cb(struct notifier_block *this,
 		 * recovery notifications during initial boot
 		 * up since everything is expected to be down.
 		 */
-		if (is_initial_boot)
+		if (is_initial_boot) {
+			is_initial_boot = false;
 			break;
+		}
 		if (cb_data->domain == AUDIO_NOTIFIER_MODEM_DOMAIN)
 			apr_modem_down(opcode);
 		else
@@ -942,7 +946,12 @@ done:
 	return NOTIFY_OK;
 }
 
-static struct notifier_block service_nb = {
+static struct notifier_block adsp_service_nb = {
+	.notifier_call  = apr_notifier_service_cb,
+	.priority = 0,
+};
+
+static struct notifier_block modem_service_nb = {
 	.notifier_call  = apr_notifier_service_cb,
 	.priority = 0,
 };
@@ -972,9 +981,9 @@ static int __init apr_init(void)
 
 	is_initial_boot = true;
 	subsys_notif_register("apr_adsp", AUDIO_NOTIFIER_ADSP_DOMAIN,
-			      &service_nb);
+			      &adsp_service_nb);
 	subsys_notif_register("apr_modem", AUDIO_NOTIFIER_MODEM_DOMAIN,
-			      &service_nb);
+			      &modem_service_nb);
 
 	return 0;
 }

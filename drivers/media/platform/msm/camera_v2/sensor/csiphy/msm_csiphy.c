@@ -47,6 +47,7 @@
 #define MSM_CSIPHY_DRV_NAME                      "msm_csiphy"
 #define CLK_LANE_OFFSET                             1
 #define NUM_LANES_OFFSET                            4
+#define CLOCK_LANE                                  0x02
 
 #define CSI_3PHASE_HW                               1
 #define MAX_DPHY_DATA_LN                            4
@@ -684,12 +685,35 @@ static int msm_csiphy_2phase_lane_config_v50(
 				csiphybase + csiphy_dev->ctrl_reg->
 				csiphy_3ph_reg.
 				mipi_csiphy_2ph_lnn_ctrl15.addr + offset);
-			msm_camera_io_w(csiphy_dev->ctrl_reg->
-				csiphy_3ph_reg.
-				mipi_csiphy_2ph_lnn_ctrl0.data,
-				csiphybase + csiphy_dev->ctrl_reg->
-				csiphy_3ph_reg.
-				mipi_csiphy_2ph_lnn_ctrl0.addr + offset);
+			if (mask == CLOCK_LANE) {
+				msm_camera_io_w(csiphy_dev->ctrl_reg->
+					csiphy_3ph_reg.
+					mipi_csiphy_2ph_lnck_ctrl0.data,
+					csiphybase + csiphy_dev->ctrl_reg->
+					csiphy_3ph_reg.
+					mipi_csiphy_2ph_lnck_ctrl0.addr);
+				msm_camera_io_w(csiphy_dev->ctrl_reg->
+					csiphy_3ph_reg.
+					mipi_csiphy_2ph_lnck_ctrl9.data,
+					csiphybase + csiphy_dev->ctrl_reg->
+					csiphy_3ph_reg.
+					mipi_csiphy_2ph_lnck_ctrl9.addr);
+			} else {
+				msm_camera_io_w(csiphy_dev->ctrl_reg->
+					csiphy_3ph_reg.
+					mipi_csiphy_2ph_lnn_ctrl0.data,
+					csiphybase + csiphy_dev->ctrl_reg->
+					csiphy_3ph_reg.
+					mipi_csiphy_2ph_lnn_ctrl0.addr +
+					offset);
+				msm_camera_io_w(csiphy_dev->ctrl_reg->
+					csiphy_3ph_reg.
+					mipi_csiphy_2ph_lnn_ctrl9.data,
+					csiphybase + csiphy_dev->ctrl_reg->
+					csiphy_3ph_reg.
+					mipi_csiphy_2ph_lnn_ctrl9.addr +
+					offset);
+			}
 			msm_camera_io_w(csiphy_dev->ctrl_reg->
 				csiphy_3ph_reg.
 				mipi_csiphy_2ph_lnn_cfg1.data,

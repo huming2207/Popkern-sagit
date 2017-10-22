@@ -235,6 +235,10 @@
 
 #define MD_PERIPHERAL_MASK(x)	(1 << x)
 
+#define MD_PERIPHERAL_PD_MASK(x)					\
+	((x == PERIPHERAL_MODEM) ? (1 << UPD_WLAN) :			\
+	((x == PERIPHERAL_LPASS) ? (1 << UPD_AUDIO | 1 << UPD_SENSORS) : 0))\
+
 /*
  * Number of stm processors includes all the peripherals and
  * apps.Added 1 below to indicate apps
@@ -543,7 +547,6 @@ struct diagchar_dev {
 	struct mutex cmd_reg_mutex;
 	uint32_t cmd_reg_count;
 	struct mutex diagfwd_channel_mutex[NUM_PERIPHERALS];
-	struct mutex diagfwd_untag_mutex;
 	/* Sizes that reflect memory pool sizes */
 	unsigned int poolsize;
 	unsigned int poolsize_hdlc;
@@ -575,6 +578,7 @@ struct diagchar_dev {
 	unsigned char *buf_feature_mask_update;
 	uint8_t hdlc_disabled;
 	struct mutex hdlc_disable_mutex;
+	struct mutex hdlc_recovery_mutex;
 	struct timer_list hdlc_reset_timer;
 	struct mutex diag_hdlc_mutex;
 	unsigned char *hdlc_buf;
@@ -609,12 +613,6 @@ struct diagchar_dev {
 	int pd_logging_mode[NUM_UPD];
 	int pd_session_clear[NUM_UPD];
 	int num_pd_session;
-	int cpd_len_1[NUM_PERIPHERALS];
-	int cpd_len_2[NUM_PERIPHERALS];
-	int upd_len_1_a[NUM_PERIPHERALS];
-	int upd_len_1_b[NUM_PERIPHERALS];
-	int upd_len_2_a;
-	int upd_len_2_b;
 	int mask_check;
 	uint32_t md_session_mask;
 	uint8_t md_session_mode;
@@ -629,8 +627,10 @@ struct diagchar_dev {
 	struct diag_mask_info *event_mask;
 	struct diag_mask_info *build_time_mask;
 	uint8_t msg_mask_tbl_count;
+	uint8_t bt_msg_mask_tbl_count;
 	uint16_t event_mask_size;
 	uint16_t last_event_id;
+	struct mutex msg_mask_lock;
 	/* Variables for Mask Centralization */
 	uint16_t num_event_id[NUM_PERIPHERALS];
 	uint32_t num_equip_id[NUM_PERIPHERALS];
@@ -673,6 +673,7 @@ void diag_cmd_remove_reg_by_proc(int proc);
 int diag_cmd_chk_polling(struct diag_cmd_reg_entry_t *entry);
 int diag_mask_param(void);
 void diag_clear_masks(struct diag_md_session_t *info);
+uint8_t diag_mask_to_pd_value(uint32_t peripheral_mask);
 
 void diag_record_stats(int type, int flag);
 

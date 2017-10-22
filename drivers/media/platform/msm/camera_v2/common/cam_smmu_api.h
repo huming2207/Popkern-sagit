@@ -62,6 +62,16 @@ enum cam_smmu_map_dir {
  */
 int cam_smmu_get_handle(char *identifier, int *handle_ptr);
 
+
+/**
+ * @param handle: Handle to identify the CAM SMMU client (VFE, CPP, FD etc.)
+ * @param flags   : SMMU attribute type
+ * @data             : Value of attribute
+ * @return Status of operation. Negative in case of error. Zero otherwise.
+ */
+int cam_smmu_set_attr(int handle, uint32_t flags, int32_t *data);
+
+
 /**
  * @param handle: Handle to identify the CAM SMMU client (VFE, CPP, FD etc.)
  * @param op    : Operation to be performed. Can be either CAM_SMMU_ATTACH

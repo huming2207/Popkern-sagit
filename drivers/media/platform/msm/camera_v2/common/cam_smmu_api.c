@@ -99,6 +99,7 @@ struct scratch_mapping {
 struct cam_context_bank_info {
 	struct device *dev;
 	struct dma_iommu_mapping *mapping;
+	enum iommu_attr attr;
 	dma_addr_t va_start;
 	size_t va_len;
 	const char *name;
@@ -871,6 +872,13 @@ static int cam_smmu_detach_device(int idx)
 {
 	struct cam_context_bank_info *cb = &iommu_cb_set.cb_info[idx];
 
+	if (!list_empty_careful(&iommu_cb_set.cb_info[idx].smmu_buf_list)) {
+		pr_err("Client %s buffer list is not clean!\n",
+			iommu_cb_set.cb_info[idx].name);
+		cam_smmu_print_list(idx);
+		cam_smmu_clean_buffer_list(idx);
+	}
+
 	/* detach the mapping to device */
 	arm_iommu_detach_device(cb->dev);
 	iommu_cb_set.cb_info[idx].state = CAM_SMMU_DETACH;
@@ -1260,6 +1268,46 @@ int cam_smmu_get_handle(char *identifier, int *handle_ptr)
 	return ret;
 }
 EXPORT_SYMBOL(cam_smmu_get_handle);
+
+int cam_smmu_set_attr(int handle, uint32_t flags, int32_t *data)
+{
+	int ret = 0, idx;
+	struct cam_context_bank_info *cb = NULL;
+	struct iommu_domain *domain = NULL;
+
+	CDBG("E: set_attr\n");
+	idx = GET_SMMU_TABLE_IDX(handle);
+	if (handle == HANDLE_INIT || idx < 0 || idx >= iommu_cb_set.cb_num) {
+		pr_err("Error: handle or index invalid. idx = %d hdl = %x\n",
+			idx, handle);
+		return -EINVAL;
+	}
+	mutex_lock(&iommu_cb_set.cb_info[idx].lock);
+	if (iommu_cb_set.cb_info[idx].handle != handle) {
+		pr_err("Error: hdl is not valid, table_hdl = %x, hdl = %x\n",
+			iommu_cb_set.cb_info[idx].handle, handle);
+		mutex_unlock(&iommu_cb_set.cb_info[idx].lock);
+		return -EINVAL;
+	}
+
+	if (iommu_cb_set.cb_info[idx].state == CAM_SMMU_DETACH) {
+		domain = iommu_cb_set.cb_info[idx].mapping->domain;
+		cb = &iommu_cb_set.cb_info[idx];
+		cb->attr |= flags;
+		/* set attributes */
+		ret = iommu_domain_set_attr(domain, cb->attr, (void *)data);
+		if (ret < 0) {
+			mutex_unlock(&iommu_cb_set.cb_info[idx].lock);
+			pr_err("Error: set attr\n");
+			return -ENODEV;
+		}
+	} else {
+		ret = -EINVAL;
+	}
+	mutex_unlock(&iommu_cb_set.cb_info[idx].lock);
+	return ret;
+}
+EXPORT_SYMBOL(cam_smmu_set_attr);
 
 int cam_smmu_ops(int handle, enum cam_smmu_ops_param ops)
 {
