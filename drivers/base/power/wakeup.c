@@ -22,37 +22,37 @@
 
 #include "power.h"
 
-static bool enable_wlan_rx_wake_ws = false;
+static bool enable_wlan_rx_wake_ws = true;
 module_param(enable_wlan_rx_wake_ws, bool, 0644);
-static bool enable_wlan_ctrl_wake_ws = false;
+static bool enable_wlan_ctrl_wake_ws = true;
 module_param(enable_wlan_ctrl_wake_ws, bool, 0644);
-static bool enable_wlan_wake_ws = false;
+static bool enable_wlan_wake_ws = true;
 module_param(enable_wlan_wake_ws, bool, 0644);
-static bool enable_qcom_rx_wakelock_ws = false;
+static bool enable_qcom_rx_wakelock_ws = true;
 module_param(enable_qcom_rx_wakelock_ws, bool, 0644);
-static bool enable_wlan_extscan_wl_ws = false;
+static bool enable_wlan_extscan_wl_ws = true;
 module_param(enable_wlan_extscan_wl_ws, bool, 0644);
-static bool enable_wlan_wow_wl_ws = false;
+static bool enable_wlan_wow_wl_ws = true;
 module_param(enable_wlan_wow_wl_ws, bool, 0644);
-static bool enable_bluedroid_timer_ws = false;
+static bool enable_bluedroid_timer_ws = true;
 module_param(enable_bluedroid_timer_ws, bool, 0644);
-static bool enable_ipa_ws = false;
+static bool enable_ipa_ws = true;
 module_param(enable_ipa_ws, bool, 0644);
-static bool enable_wlan_ws = false;
+static bool enable_wlan_ws = true;
 module_param(enable_wlan_ws, bool, 0644);
-static bool enable_timerfd_ws = false;
+static bool enable_timerfd_ws = true;
 module_param(enable_timerfd_ws, bool, 0644);
-static bool enable_netlink_ws = false;
+static bool enable_netlink_ws = true;
 module_param(enable_netlink_ws, bool, 0644);
-static bool enable_netmgr_wl_ws = false;
+static bool enable_netmgr_wl_ws = true;
 module_param(enable_netmgr_wl_ws, bool, 0644);
-static bool enable_bluetooth_timer_ws = false;
+static bool enable_bluetooth_timer_ws = true;
 module_param(enable_bluetooth_timer_ws, bool, 0644);
 static bool enable_wcnss_filter_lock_ws = false;
 module_param(enable_wcnss_filter_lock_ws, bool, 0644);
-static bool enable_alarmtimer_ws = false;
+static bool enable_alarmtimer_ws = true;
 module_param(enable_alarmtimer_ws, bool, 0644);
-static bool enable_fpc_ttw_wl_ws = false;
+static bool enable_fpc_ttw_wl_ws = true;
 module_param(enable_fpc_ttw_wl_ws, bool, 0644);
 
 /*
@@ -625,6 +625,8 @@ static bool wakeup_source_blocker(struct wakeup_source *ws)
             			!strncmp(ws->name, "wlan_wow_wl", wslen)) ||
 		    	(!enable_alarmtimer_ws &&
             			!strncmp(ws->name, "alarmtimer", wslen)) ||
+			(!enable_wcnss_filter_lock_ws &&
+				!strncmp(ws->name, "wcnss_filter_lock", wslen)) ||
 			(!enable_fpc_ttw_wl_ws &&
             			!strncmp(ws->name, "fpc_ttw_wl", wslen)) ||
 			(!enable_wlan_ctrl_wake_ws &&
