@@ -1,0 +1,2 @@
+export CROSS_COMPILE=../linaro/bin/aarch64-linaro-linux-android- && make ARCH=arm64 O=../out mrproper && make ARCH=arm64 O=../out sagit_user_defconfig && make ARCH=arm64 O=../out -j8 && cd ../out && cat arch/arm64/boot/Image.gz arch/arm64/boot/dts/qcom/*.dtb > zImage && mv zImage ~/Desktop/Hasty/HastyKernel/zip && '/home/nissecool/Desktop/Hasty/linaro/bin/aarch64-linaro-linux-android-strip' -g ~/Desktop/Hasty/out/drivers/staging/qcacld-3.0/wlan.ko
+
