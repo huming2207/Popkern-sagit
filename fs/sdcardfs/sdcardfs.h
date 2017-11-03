@@ -219,6 +219,7 @@ struct sdcardfs_mount_options {
 	gid_t fs_low_gid;
 	userid_t fs_user_id;
 	bool multiuser;
+	bool gid_derivation;
 	unsigned int reserved_mb;
 };
 
@@ -655,7 +656,7 @@ static inline bool str_n_case_eq(const char *s1, const char *s2, size_t len)
 
 static inline bool qstr_case_eq(const struct qstr *q1, const struct qstr *q2)
 {
-	return q1->len == q2->len && str_n_case_eq(q1->name, q2->name, q1->len);
+	return q1->len == q2->len && str_case_eq(q1->name, q2->name);
 }
 
 #define QSTR_LITERAL(string) QSTR_INIT(string, sizeof(string)-1)

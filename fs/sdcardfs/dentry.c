@@ -48,7 +48,8 @@ static int sdcardfs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	spin_unlock(&dentry->d_lock);
 
 	/* check uninitialized obb_dentry and
-	 * whether the base obbpath has been changed or not */
+	 * whether the base obbpath has been changed or not
+	 */
 	if (is_obbpath_invalid(dentry)) {
 		d_drop(dentry);
 		return 0;
