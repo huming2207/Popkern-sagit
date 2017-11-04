@@ -87,6 +87,8 @@ static int utimes_common(struct path *path, struct timespec *times)
 		 */
 		newattrs.ia_valid |= ATTR_TIMES_SET;
 	} else {
+		newattrs.ia_valid |= ATTR_TOUCH;
+
 		/*
 		 * If times is NULL (or both times are UTIME_NOW),
 		 * then we need to check permissions, because
@@ -112,7 +114,6 @@ retry_deleg:
 			goto retry_deleg;
 	}
 
-mnt_drop_write_and_out:
 	mnt_drop_write(path->mnt);
 out:
 	return error;
