@@ -200,7 +200,10 @@ static ssize_t slave_pct_store(struct class *c, struct class_attribute *attr,
 	if (kstrtoul(ubuf, 10, &val))
 		return -EINVAL;
 
-	chip->slave_pct = val;
+	if (val >= 50 && val <= 100)
+		chip->slave_pct = 50;
+	else
+		chip->slave_pct = val;
 	rerun_election(chip->fcc_votable);
 	rerun_election(chip->fv_votable);
 	split_settled(chip);
