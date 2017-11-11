@@ -36,21 +36,21 @@ static struct smb_params v1_params = {
 		.name	= "fast charge current",
 		.reg	= FAST_CHARGE_CURRENT_CFG_REG,
 		.min_u	= 0,
-		.max_u	= 4500000,
+		.max_u	= 3300000,
 		.step_u	= 25000,
 	},
 	.fv			= {
 		.name	= "float voltage",
 		.reg	= FLOAT_VOLTAGE_CFG_REG,
 		.min_u	= 3487500,
-		.max_u	= 4920000,
+		.max_u	= 4400000,
 		.step_u	= 7500,
 	},
 	.usb_icl		= {
 		.name	= "usb input current limit",
 		.reg	= USBIN_CURRENT_LIMIT_CFG_REG,
 		.min_u	= 0,
-		.max_u	= 4800000,
+		.max_u	= 3000000,
 		.step_u	= 25000,
 	},
 	.icl_stat		= {
@@ -64,7 +64,7 @@ static struct smb_params v1_params = {
 		.name	= "usb otg current limit",
 		.reg	= OTG_CURRENT_LIMIT_CFG_REG,
 		.min_u	= 250000,
-		.max_u	= 2000000,
+		.max_u	= 1500000,
 		.step_u	= 250000,
 	},
 	.dc_icl			= {
@@ -1368,8 +1368,16 @@ static int smb2_configure_typec(struct smb_charger *chg)
 		return rc;
 	}
 
-	/* disable try.SINK mode and legacy cable IRQs */
-	rc = smblib_masked_write(chg, TYPE_C_CFG_3_REG, EN_TRYSINK_MODE_BIT |
+	/* enable try.SINK mode */
+	rc = smblib_masked_write(chg, TYPE_C_CFG_3_REG, EN_TRYSINK_MODE_BIT,
+							EN_TRYSINK_MODE_BIT);
+	if (rc < 0) {
+		dev_err(chg->dev, "Couldn't set Type-C config rc=%d\n", rc);
+		return rc;
+	}
+
+	/* disable legacy cable IRQs */
+	rc = smblib_masked_write(chg, TYPE_C_CFG_3_REG,
 				TYPEC_NONCOMPLIANT_LEGACY_CABLE_INT_EN_BIT |
 				TYPEC_LEGACY_CABLE_INT_EN_BIT, 0);
 	if (rc < 0) {
@@ -1544,6 +1552,25 @@ static int smb2_init_hw(struct smb2 *chip)
 	vote(chg->hvdcp_enable_votable, MICRO_USB_VOTER,
 			chg->micro_usb_mode, 0);
 
+	/* Operate the QC2.0 in 5V/9V mode i.e. Disable 12V */
+	rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG,
+				 PULSE_COUNT_QC2P0_12V | PULSE_COUNT_QC2P0_9V,
+				 PULSE_COUNT_QC2P0_9V);
+	if (rc < 0) {
+		dev_err(chg->dev,
+			"Couldn't configure QC2.0 to 9V rc=%d\n", rc);
+		return rc;
+	}
+	/* Operate the QC3.0 to limit vbus to 6.6v*/
+	rc = smblib_masked_write(chg, HVDCP_PULSE_COUNT_MAX_REG,
+				 PULSE_COUNT_QC3P0_mask,
+				 0x8);
+	if (rc < 0) {
+		dev_err(chg->dev,
+			"Couldn't configure QC3.0 to 6.6V rc=%d\n", rc);
+		return rc;
+	}
+
 	/*
 	 * AICL configuration:
 	 * start from min and AICL ADC disable
@@ -1638,6 +1665,15 @@ static int smb2_init_hw(struct smb2 *chip)
 		dev_err(chg->dev, "Couldn't disable SW STAT override rc=%d\n",
 			rc);
 		return rc;
+	}
+
+	/* set usbin collapse timer*/
+	rc = smblib_masked_write(chg, USBIN_LOAD_CFG_REG,
+				 USBIN_COLLAPSE_SEL_MASK,
+				USBIN_COLLAPSE_SEL_MASK);
+	if (rc < 0) {
+		dev_err(chg->dev, "set usbin collapse timer fault rc=%d\n",
+			rc);
 	}
 
 	/* disable h/w autonomous parallel charging control */
