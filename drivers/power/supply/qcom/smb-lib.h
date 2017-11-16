@@ -253,7 +253,6 @@ struct smb_charger {
 #ifdef CONFIG_FB
 	struct mutex		screen_lock;
 #endif
-	struct mutex		vconn_oc_lock;
 
 	/* power supplies */
 	struct power_supply		*batt_psy;
