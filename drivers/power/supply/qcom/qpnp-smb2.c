@@ -190,6 +190,7 @@ module_param_named(
 
 #define MICRO_1P5A		1500000
 #define MICRO_P1A		100000
+#define MAX_DCP_ICL_UA  1800000
 #define OTG_DEFAULT_DEGLITCH_TIME_MS	50
 #define MIN_WD_BARK_TIME		16
 #define DEFAULT_WD_BARK_TIME		64
@@ -245,6 +246,8 @@ static int smb2_parse_dt(struct smb2 *chip)
 				"qcom,dc-icl-ua", &chip->dt.dc_icl_ua);
 	if (rc < 0)
 		chip->dt.dc_icl_ua = -EINVAL;
+
+	chg->dcp_icl_ua = MAX_DCP_ICL_UA;
 
 	rc = of_property_read_u32(node,
 				"qcom,boost-threshold-ua",
@@ -309,8 +312,6 @@ static int smb2_parse_dt(struct smb2 *chip)
 						"qcom,auto-recharge-soc");
 
 	chg->micro_usb_mode = of_property_read_bool(node, "qcom,micro-usb");
-
-	chg->dcp_icl_ua = chip->dt.usb_icl_ua;
 
 	chg->suspend_input_on_debug_batt = of_property_read_bool(node,
 					"qcom,suspend-input-on-debug-batt");
