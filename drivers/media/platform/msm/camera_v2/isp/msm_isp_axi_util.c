@@ -934,6 +934,8 @@ void msm_isp_increment_frame_id(struct vfe_device *vfe_dev,
 							sync_state =
 							MSM_ISP_DUAL_CAM_ASYNC;
 				}
+				ms_res->src_sof_mask = 0;
+				ms_res->active_src_mask = 1 << src_info->dual_hw_ms_info.index;
 			}
 			ms_res->src_sof_mask |= (1 <<
 					src_info->dual_hw_ms_info.index);

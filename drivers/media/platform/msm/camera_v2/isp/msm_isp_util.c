@@ -636,8 +636,6 @@ static int msm_isp_set_dual_HW_master_slave_mode(
 	if (dual_hw_ms_cmd->num_src > VFE_SRC_MAX) {
 		pr_err("%s: Error! Invalid num_src %d\n", __func__,
 			dual_hw_ms_cmd->num_src);
-		spin_unlock_irqrestore(&vfe_dev->common_data->
-			common_dev_data_lock, flags);
 		return -EINVAL;
 	}
 	/* This for loop is for non-primary intf to be marked with Master/Slave

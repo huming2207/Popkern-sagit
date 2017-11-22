@@ -1471,6 +1471,11 @@ static int32_t msm_actuator_set_param(struct msm_actuator_ctrl_t *a_ctrl,
 				a_ctrl->i2c_reg_tbl = NULL;
 				pr_err("Error actuator_init_focus\n");
 				return -EFAULT;
+			} else if (rc == 1) {
+				kfree(a_ctrl->i2c_reg_tbl);
+				a_ctrl->i2c_reg_tbl = NULL;
+				pr_err("actuator_init_focus return 1\n");
+				return rc;
 			}
 		}
 	}
