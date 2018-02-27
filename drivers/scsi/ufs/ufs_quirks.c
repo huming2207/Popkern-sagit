@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -67,6 +68,8 @@ static int ufs_get_device_info(struct ufs_hba *hba,
 	 */
 	card_data->wmanufacturerid = desc_buf[DEVICE_DESC_PARAM_MANF_ID] << 8 |
 				     desc_buf[DEVICE_DESC_PARAM_MANF_ID + 1];
+
+	dev_info(hba->dev, "UFS manufacturer id: 0x%04X\n", card_data->wmanufacturerid);
 
 	model_index = desc_buf[DEVICE_DESC_PARAM_PRDCT_NAME];
 
