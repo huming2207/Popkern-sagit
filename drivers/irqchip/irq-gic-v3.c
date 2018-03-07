@@ -25,6 +25,7 @@
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/wakeup_reason.h>
 
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic-v3.h>
@@ -443,6 +444,20 @@ static void gic_show_resume_irq(struct gic_chip_data *gic)
 			name = desc->action->name;
 
 		pr_warn("%s: %d triggered %s\n", __func__, irq, name);
+
+		/* ignore spmi interrupt, since it will record in __qpnpint_handle_irq() */
+		if (irq == 10)
+			continue;
+
+		/* ignore rpm interrupt, since every interrupt in power collapse is coming from rpm */
+		if (irq == 53)
+			continue;
+
+		/* ignore gpio interrupt, since it will record in show_resume_gpio_irq() */
+		if (irq == 165)
+			continue;
+
+		log_wakeup_reason(irq);
 	}
 }
 
