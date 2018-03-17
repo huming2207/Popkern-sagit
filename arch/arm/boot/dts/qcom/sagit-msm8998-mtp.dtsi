@@ -891,6 +891,7 @@
 		 linux,name = "button-backlight1";
 };
 &pmi8998_charger {
+		 qcom,fv-max-uv = <4325000>;
 		 qcom,usb-icl-ua = <3000000>;
 		 qcom,fcc-max-ua = <3200000>;
 		 qcom,fcc-low-temp-delta = <2875000>;
@@ -903,9 +904,9 @@
 		 qcom,thermal-mitigation-dcp
 								= <1800000 1600000 1400000 1200000 1000000 1000000 1000000>;
 		 qcom,thermal-mitigation-qc3
-								= <3000000 2425000 2125000 1825000 1525000 1225000 750000>;
+								= <3000000 2500000 2225000 2025000 1625000 1225000 750000>;
 		 qcom,thermal-mitigation-qc2
-								= <1600000 1400000 1200000 1000000 900000 900000 550000>;
+								= <1800000 1600000 1400000 1200000 1000000 900000 550000>;
 };
 &pmi8998_fg {
 		 qcom,fg-force-load-profile;
