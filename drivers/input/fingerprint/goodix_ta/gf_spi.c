@@ -254,7 +254,6 @@ static int gf_probe(struct platform_device *pdev)
 	int rc = 0;
 
 	gf_dev->spi = pdev;
-	gf_dev->irq_enabled = false;
 
 	gf_dev->reset_gpio = of_get_named_gpio(gf_dev->spi->dev.of_node,
 			"fp-gpio-reset", 0);
@@ -297,6 +296,8 @@ static int gf_probe(struct platform_device *pdev)
 	}
 
 	enable_irq_wake(gf_dev->irq);
+	gf_dev->irq_enabled = true;
+	gf_set_irq(gf_dev, 0);
 
 	/*
 	 * If we can allocate a minor number, hook up this device.
