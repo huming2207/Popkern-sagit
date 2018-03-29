@@ -111,6 +111,9 @@
 		qcom,dispblnotify-enabled;
 		qcom,dispccbb-enabled;
 		qcom,dispparam-enabled;
+		qcom,ulps-enabled;
+		qcom,suspend-ulps-enabled;
+		qcom,panel-allow-phy-poweroff;
 		qcom,mdss-night-brightness = <7 25 43 61>;
 		qcom,mdss-dsi-dispparam-cabcon-command = [
 				29 01 00 00 00 00 02 B0 04
